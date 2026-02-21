@@ -39,32 +39,32 @@ class DetectFace:
 
     # return type : np.array
     def detect_face_part(self):
-        face_parts = [[],[],[],[],[],[],[]]
         # detect faces in the grayscale image
-        faces = self.detector(cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY), 1)
+        gray = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
+        faces = self.detector(gray, 1)
         if len(faces) == 0:
             raise Exception("No face detected in the image")
         rect = faces[0]
 
         # determine the facial landmarks for the face region, then
         # convert the landmark (x, y)-coordinates to a NumPy array
-        shape = self.predictor(cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY), rect)
+        shape = self.predictor(gray, rect)
         shape = face_utils.shape_to_np(shape)
 
-        idx = 0
-        # loop over the face parts individually
-        for (name, (i, j)) in face_utils.FACIAL_LANDMARKS_IDXS.items():
-            face_parts[idx] = shape[i:j]
-            idx += 1
-        face_parts = face_parts[1:5]
+        # Use name-based lookup for compatibility with all imutils versions
+        # (older versions have 7 entries, newer versions have 8 with 'inner_mouth')
+        landmarks = dict(face_utils.FACIAL_LANDMARKS_IDXS)
+
+        def get_part(name):
+            (i, j) = landmarks[name]
+            return shape[i:j]
+
         # set the variables
-        # Caution: this coordinates fits on the RESIZED image.
-        self.right_eyebrow = self.extract_face_part(face_parts[0])
-        #cv2.imshow("right_eyebrow", self.right_eyebrow)
-        #cv2.waitKey(0)
-        self.left_eyebrow = self.extract_face_part(face_parts[1])
-        self.right_eye = self.extract_face_part(face_parts[2])
-        self.left_eye = self.extract_face_part(face_parts[3])
+        # Caution: these coordinates fit on the RESIZED image.
+        self.right_eyebrow = self.extract_face_part(get_part("right_eyebrow"))
+        self.left_eyebrow = self.extract_face_part(get_part("left_eyebrow"))
+        self.right_eye = self.extract_face_part(get_part("right_eye"))
+        self.left_eye = self.extract_face_part(get_part("left_eye"))
         # Cheeks are detected by relative position to the face landmarks
         self.left_cheek = self.img[shape[29][1]:shape[33][1], shape[4][0]:shape[48][0]]
         self.right_cheek = self.img[shape[29][1]:shape[33][1], shape[54][0]:shape[12][0]]
