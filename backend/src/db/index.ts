@@ -685,10 +685,10 @@ if (usePostgres) {
   void postgresDb.testConnection().then(connected => {
     if (connected) {
       console.info('Using PostgreSQL database');
-      // Initialize schema only in development
-      if (process.env.NODE_ENV !== 'production') {
-        postgresDb.initialize().catch(console.error);
-      }
+      // Initialize schema (uses IF NOT EXISTS, safe to run every time)
+      postgresDb.initialize().catch(err => {
+        console.error('Schema initialization failed:', err);
+      });
     } else {
       if (process.env.NODE_ENV === 'production') {
         console.error('FATAL: PostgreSQL connection failed in production');

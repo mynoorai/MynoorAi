@@ -174,11 +174,195 @@ export class PostgresDatabase {
   // Initialize database schema
   async initialize(): Promise<void> {
     try {
-      // For now, we'll handle schema initialization manually or through migrations
-      // This is just a placeholder to avoid require() usage
-      console.info('Database schema should be initialized manually or through migrations');
+      console.info('[Database] Initializing schema (IF NOT EXISTS)...');
+
+      // 1. Timestamp trigger function
+      await pool.query(`
+        CREATE OR REPLACE FUNCTION update_updated_at_column()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            NEW.updated_at = CURRENT_TIMESTAMP;
+            RETURN NEW;
+        END;
+        $$ language 'plpgsql';
+      `);
+
+      // 2. Users table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          email VARCHAR(255) UNIQUE NOT NULL,
+          password_hash VARCHAR(255) NOT NULL,
+          full_name VARCHAR(255) NOT NULL,
+          instagram_id VARCHAR(30),
+          email_verified BOOLEAN DEFAULT FALSE,
+          verification_token VARCHAR(255),
+          verification_token_expires TIMESTAMPTZ,
+          reset_password_token VARCHAR(255),
+          reset_password_expires TIMESTAMP WITH TIME ZONE,
+          role VARCHAR(32) NOT NULL DEFAULT 'user',
+          last_login_at TIMESTAMPTZ,
+          has_personal_color_diagnosis BOOLEAN DEFAULT FALSE,
+          personal_color_result JSONB,
+          diagnosed_at TIMESTAMPTZ,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_instagram_id ON users(instagram_id)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_verification_token ON users(verification_token)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_reset_password_token ON users(reset_password_token)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)`);
+
+      // 3. Sessions table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS sessions (
+          id VARCHAR(50) PRIMARY KEY,
+          instagram_id VARCHAR(30),
+          user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+          uploaded_image_url TEXT,
+          analysis_result JSONB,
+          journey_status VARCHAR(50),
+          priority VARCHAR(20),
+          offer_sent_at TIMESTAMPTZ,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_sessions_instagram_id ON sessions(instagram_id)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_sessions_created_at ON sessions(created_at DESC)`);
+
+      // 4. Recommendations table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS recommendations (
+          id VARCHAR(50) PRIMARY KEY,
+          session_id VARCHAR(50) REFERENCES sessions(id) ON DELETE CASCADE,
+          instagram_id VARCHAR(30) NOT NULL,
+          personal_color_result JSONB,
+          user_preferences JSONB,
+          uploaded_image_url TEXT,
+          status VARCHAR(20) NOT NULL DEFAULT 'pending',
+          dm_sent_at TIMESTAMP WITH TIME ZONE,
+          completed_at TIMESTAMP WITH TIME ZONE,
+          notes TEXT,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_recommendations_session_id ON recommendations(session_id)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_recommendations_instagram_id ON recommendations(instagram_id)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_recommendations_status ON recommendations(status)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_recommendations_created_at ON recommendations(created_at DESC)`);
+
+      // 5. Refresh tokens table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS refresh_tokens (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          token VARCHAR(500) UNIQUE NOT NULL,
+          expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens(token)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at)`);
+
+      // 6. Products table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS products (
+          id VARCHAR(50) PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          category VARCHAR(50) NOT NULL,
+          price INTEGER NOT NULL,
+          thumbnail_url TEXT NOT NULL,
+          detail_image_urls TEXT[] DEFAULT '{}',
+          personal_colors TEXT[] NOT NULL,
+          description TEXT,
+          shopee_link TEXT NOT NULL,
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_products_category ON products(category)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_products_is_active ON products(is_active)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_products_created_at ON products(created_at DESC)`);
+
+      // 7. Contents table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS contents (
+          id VARCHAR(50) PRIMARY KEY,
+          title VARCHAR(255) NOT NULL,
+          subtitle VARCHAR(255),
+          slug VARCHAR(255) UNIQUE NOT NULL,
+          thumbnail_url TEXT NOT NULL,
+          content TEXT NOT NULL,
+          excerpt TEXT,
+          category VARCHAR(50) NOT NULL,
+          tags TEXT[] DEFAULT '{}',
+          status VARCHAR(20) NOT NULL DEFAULT 'draft',
+          published_at TIMESTAMP WITH TIME ZONE,
+          meta_description TEXT,
+          meta_keywords TEXT,
+          view_count INTEGER DEFAULT 0,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_contents_slug ON contents(slug)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_contents_category ON contents(category)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_contents_status ON contents(status)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_contents_published_at ON contents(published_at DESC)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_contents_view_count ON contents(view_count DESC)`);
+
+      // 8. Message history table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS message_history (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          session_id VARCHAR(50),
+          message_type TEXT NOT NULL,
+          sent_by TEXT NOT NULL DEFAULT 'admin',
+          sent_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_message_history_session_id ON message_history(session_id)`);
+
+      // 9. Admin actions table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS admin_actions (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          session_id VARCHAR(50),
+          action_type TEXT NOT NULL,
+          action_details JSONB,
+          performed_by TEXT NOT NULL,
+          performed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_admin_actions_performed_at ON admin_actions(performed_at DESC)`);
+
+      // 10. Create triggers (drop first to avoid duplicates)
+      const triggers = [
+        { name: 'update_users_updated_at', table: 'users' },
+        { name: 'update_sessions_updated_at', table: 'sessions' },
+        { name: 'update_recommendations_updated_at', table: 'recommendations' },
+        { name: 'update_products_updated_at', table: 'products' },
+        { name: 'update_contents_updated_at', table: 'contents' },
+      ];
+      for (const t of triggers) {
+        await pool.query(`DROP TRIGGER IF EXISTS ${t.name} ON ${t.table}`);
+        await pool.query(`
+          CREATE TRIGGER ${t.name} BEFORE UPDATE ON ${t.table}
+          FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
+        `);
+      }
+
+      console.info('✅ [Database] Schema initialization complete');
     } catch (error) {
       console.error('Failed to initialize database schema:', error);
+      throw error;
     }
   }
 
