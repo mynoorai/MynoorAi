@@ -94,21 +94,31 @@ async def analyze_personal_color(
         # Save uploaded file temporarily
         temp_filename = f"temp_{file.filename}"
         temp_path = os.path.join("/tmp", temp_filename)
-        
+
         with open(temp_path, "wb") as f:
             f.write(contents)
-        
+
+        print(f"[analyze] Saved temp file: {temp_path} ({len(contents)} bytes, type={file.content_type})")
+
         # Analyze personal color
-        result = personal_color.analysis(temp_path)
-        
+        try:
+            result = personal_color.analysis(temp_path)
+        except Exception as analysis_err:
+            import traceback
+            print(f"[analyze] Analysis exception: {analysis_err}")
+            print(f"[analyze] Traceback: {traceback.format_exc()}")
+            result = None
+
         # Clean up temp file
-        os.remove(temp_path)
-        
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
         # Format response based on analysis result
         if result is None:
+            print(f"[analyze] Face not detected or analysis failed for file: {file.filename}")
             raise HTTPException(
                 status_code=400,
-                detail="Face not detected in the image"
+                detail="Face not detected in the image. Please upload a clear photo with your face visible."
             )
         
         # Extract season and convert to response format

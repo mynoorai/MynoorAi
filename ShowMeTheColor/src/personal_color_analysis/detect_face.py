@@ -79,7 +79,7 @@ class DetectFace:
         # Create an mask
         mask = np.zeros((crop.shape[0], crop.shape[1]))
         cv2.fillConvexPoly(mask, adj_points, 1)
-        mask = mask.astype(np.bool)
+        mask = mask.astype(bool)
         crop[np.logical_not(mask)] = [255, 0, 0]
 
         return crop

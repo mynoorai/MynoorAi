@@ -71,5 +71,7 @@ def analysis(imgpath):
             'hsv_s': hsv_s
         }
     except Exception as e:
-        print(f"Error in analysis: {str(e)}")
-        return None
+        import traceback
+        print(f"[personal_color] Error in analysis: {str(e)}")
+        print(f"[personal_color] Traceback: {traceback.format_exc()}")
+        raise  # Re-raise so api.py can log the full error
