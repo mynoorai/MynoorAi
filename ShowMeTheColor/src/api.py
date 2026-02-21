@@ -52,6 +52,72 @@ async def health_check():
         "service": "personal-color-analysis"
     }
 
+@app.get("/debug/env")
+async def debug_env():
+    """Debug endpoint to check environment and model files"""
+    import glob
+
+    # Check model file
+    model_paths = [
+        '/app/res/shape_predictor_68_face_landmarks.dat',
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'res', 'shape_predictor_68_face_landmarks.dat'),
+    ]
+
+    model_info = {}
+    for p in model_paths:
+        resolved = os.path.realpath(p)
+        model_info[resolved] = {
+            "exists": os.path.exists(resolved),
+            "size_mb": round(os.path.getsize(resolved) / 1024 / 1024, 1) if os.path.exists(resolved) else 0
+        }
+
+    # Check dlib
+    dlib_ok = False
+    dlib_err = None
+    try:
+        import dlib
+        detector = dlib.get_frontal_face_detector()
+        dlib_ok = True
+    except Exception as e:
+        dlib_err = str(e)
+
+    # Check cv2
+    cv2_ok = False
+    cv2_err = None
+    try:
+        import cv2
+        cv2_ok = True
+    except Exception as e:
+        cv2_err = str(e)
+
+    # Check numpy version
+    np_version = "unknown"
+    np_bool_ok = False
+    try:
+        np_version = np.__version__
+        _ = np.zeros((3,3)).astype(bool)
+        np_bool_ok = True
+    except Exception:
+        pass
+
+    # List res directory
+    res_files = []
+    if os.path.exists('/app/res'):
+        res_files = os.listdir('/app/res')
+
+    return {
+        "cwd": os.getcwd(),
+        "model_files": model_info,
+        "res_dir_contents": res_files,
+        "dlib_ok": dlib_ok,
+        "dlib_error": dlib_err,
+        "cv2_ok": cv2_ok,
+        "cv2_error": cv2_err,
+        "numpy_version": np_version,
+        "numpy_bool_ok": np_bool_ok,
+        "python_version": sys.version,
+    }
+
 @app.options("/analyze")
 async def options_analyze():
     """Handle preflight requests"""
