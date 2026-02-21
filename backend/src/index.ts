@@ -110,20 +110,22 @@ const allowedOrigins = config.CLIENT_URL
   : env.isProduction()
     ? [
         // PRODUCTION: Only HTTPS origins allowed
-        'https://noorai-ashy.vercel.app', 
+        'https://noorai-ashy.vercel.app',
         'https://pca-hijab.vercel.app',
         'https://noorai.vercel.app',
-        'https://pca-hijab-frontend.vercel.app'
+        'https://pca-hijab-frontend.vercel.app',
+        'https://pca-hijab-frontend-9l34.onrender.com'
       ]
     : [
         // DEVELOPMENT: Allow localhost for development
-        'http://localhost:3000', 
-        'http://localhost:5173', 
+        'http://localhost:3000',
+        'http://localhost:5173',
         'http://localhost:5174',
-        'https://noorai-ashy.vercel.app', 
+        'https://noorai-ashy.vercel.app',
         'https://pca-hijab.vercel.app',
         'https://noorai.vercel.app',
-        'https://pca-hijab-frontend.vercel.app'
+        'https://pca-hijab-frontend.vercel.app',
+        'https://pca-hijab-frontend-9l34.onrender.com'
       ];
 
 const normalizeOrigin = (origin: string): string => origin.trim().replace(/\/$/, '').toLowerCase();

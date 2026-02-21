@@ -18,7 +18,7 @@ export const API_BASE_URL = (() => {
   
   // Environment-specific fallbacks
   if (import.meta.env.MODE === 'production') {
-    return 'https://pca-hijab-backend-unified.onrender.com/api';
+    return 'https://pca-hijab-backend-q07l.onrender.com/api';
   } else {
     // Development fallback only
     return 'http://localhost:5001/api';
@@ -41,7 +41,7 @@ export const AI_API_URL = (() => {
   if (import.meta.env.MODE === 'production') {
     console.error('VITE_AI_API_URL environment variable is missing in production, using fallback');
     // Use localhost as fallback instead of throwing
-    return 'http://localhost:8000';
+    return 'https://showmethecolor-api-k9k3.onrender.com';
   } else {
     // Development fallback only
     return 'http://localhost:8080';
