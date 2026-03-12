@@ -1,5 +1,6 @@
 # Main Render configuration file
-# This file is used when deploying multiple services from the root directory
+# This file is used when deploying multiple services from the root directory.
+# Keep secrets out of git and set them in Render via generated values or dashboard-managed env vars.
 
 services:
   # Backend API Service
@@ -26,15 +27,15 @@ services:
       - key: CLIENT_URL
         value: https://pca-hijab.vercel.app,https://noorai-ashy.vercel.app,https://noorai.vercel.app,https://pca-hijab-frontend.vercel.app
       - key: DATABASE_URL
-        value: postgresql://pca_hijab_db_fm69_user:VnyKtJJUqgFhE95HRD6EeG6iUoCoax2O@dpg-d39furqli9vc7380a6vg-a.singapore-postgres.render.com/pca_hijab_db_fm69
+        sync: false
       - key: JWT_SECRET
-        value: 8a111WXL3dZy6/N7SyzkJgOp36Nvs9XHWAhAnViD6GY=
+        generateValue: true
       - key: JWT_REFRESH_SECRET
-        value: SVf8UKYy6m8Lr9dVTGUzCzIcjS0g81CaxkVcExJfDB4=
+        generateValue: true
       - key: EMAIL_ENABLED
         value: true
       - key: RESEND_API_KEY
-        value: re_PspAYXmP_37xPU2MiBMZFiCD2yqwEL1XK
+        sync: false
       - key: EMAIL_FROM
         value: PCA-HIJAB <onboarding@resend.dev>
 
