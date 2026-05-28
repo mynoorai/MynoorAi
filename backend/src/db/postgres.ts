@@ -106,6 +106,15 @@ const getSSLConfig = (): SSLConfig => {
     return false; // No SSL for development without DATABASE_URL
   }
 
+  // Explicit escape hatch for self-hosted Postgres without SSL
+  // (e.g. local docker-compose, Mac mini, Tailnet internal DB)
+  if (
+    process.env.DB_SSL_DISABLE === "true" ||
+    /[?&]sslmode=disable\b/.test(databaseUrl)
+  ) {
+    return false;
+  }
+
   // Production SSL configuration
   if (process.env.NODE_ENV === "production") {
     // More secure SSL configuration
