@@ -49,6 +49,29 @@ const normalizeSlug = (raw: string): string => {
     .trim();
 };
 
+// Product category / content category 일관 정규화 (대소문자·공백·잘못된 enum 방어)
+// Admin UI에서 'Hijab', ' hijab '처럼 들어와도 모두 'hijab'으로 통일.
+const PRODUCT_CATEGORIES: ProductCategory[] = ["hijab", "lens", "lip", "blush"];
+const CONTENT_CATEGORIES: ContentCategory[] = [
+  "beauty_tips",
+  "hijab_styling",
+  "color_guide",
+  "trend",
+  "tutorial",
+];
+
+const normalizeProductCategory = (raw: unknown): ProductCategory | null => {
+  if (!raw) return null;
+  const v = String(raw).trim().toLowerCase() as ProductCategory;
+  return PRODUCT_CATEGORIES.includes(v) ? v : null;
+};
+
+const normalizeContentCategory = (raw: unknown): ContentCategory | null => {
+  if (!raw) return null;
+  const v = String(raw).trim().toLowerCase() as ContentCategory;
+  return CONTENT_CATEGORIES.includes(v) ? v : null;
+};
+
 // 이미 존재하는 슬러그가 있을 경우 -1, -2 식으로 유니크 슬러그 생성
 const ensureUniqueSlug = async (
   baseSlug: string,
@@ -267,13 +290,8 @@ router.post("/products", async (req, res, next) => {
       throw new AppError(400, `Price too large. Max allowed is ${MAX_INT}`);
     }
 
-    const validCategories: ProductCategory[] = [
-      "hijab",
-      "lens",
-      "lip",
-      "blush",
-    ];
-    if (!validCategories.includes(category)) {
+    const normalizedCategory = normalizeProductCategory(category);
+    if (!normalizedCategory) {
       console.error("[Admin API] Invalid category:", category);
       throw new AppError(400, `Invalid category: ${category}`);
     }
@@ -298,7 +316,7 @@ router.post("/products", async (req, res, next) => {
 
     const productData = {
       name,
-      category,
+      category: normalizedCategory,
       price: numPrice, // Use validated price
       thumbnailUrl,
       detailImageUrls: detailImageUrls || [],
@@ -350,19 +368,15 @@ router.put("/products/:id", async (req, res, next) => {
 
     // Validate category if provided
     if (updates.category) {
-      const validCategories: ProductCategory[] = [
-        "hijab",
-        "lens",
-        "lip",
-        "blush",
-      ];
-      if (!validCategories.includes(updates.category)) {
+      const normalizedCategory = normalizeProductCategory(updates.category);
+      if (!normalizedCategory) {
         console.error(
           "[Admin API] Invalid category in update:",
           updates.category,
         );
         throw new AppError(400, `Invalid category: ${updates.category}`);
       }
+      updates.category = normalizedCategory;
     }
 
     // Validate personal colors if provided
@@ -636,14 +650,8 @@ router.post("/contents", async (req, res, next) => {
     const baseSlug = normalizeSlug(rawSlug) || `content-${Date.now()}`;
     const uniqueSlug = await ensureUniqueSlug(baseSlug);
 
-    const validCategories: ContentCategory[] = [
-      "beauty_tips",
-      "hijab_styling",
-      "color_guide",
-      "trend",
-      "tutorial",
-    ];
-    if (!validCategories.includes(category)) {
+    const normalizedCategory = normalizeContentCategory(category);
+    if (!normalizedCategory) {
       throw new AppError(400, "Invalid category");
     }
 
@@ -662,7 +670,7 @@ router.post("/contents", async (req, res, next) => {
       thumbnailUrl,
       content,
       excerpt,
-      category,
+      category: normalizedCategory,
       tags: tags || [],
       status: status || "draft",
       metaDescription,
@@ -690,16 +698,11 @@ router.put("/contents/:id", async (req, res, next) => {
 
     // Validate category if provided
     if (updates.category) {
-      const validCategories: ContentCategory[] = [
-        "beauty_tips",
-        "hijab_styling",
-        "color_guide",
-        "trend",
-        "tutorial",
-      ];
-      if (!validCategories.includes(updates.category)) {
+      const normalizedCategory = normalizeContentCategory(updates.category);
+      if (!normalizedCategory) {
         throw new AppError(400, "Invalid category");
       }
+      updates.category = normalizedCategory;
     }
 
     // Validate status if provided
