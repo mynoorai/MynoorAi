@@ -42,7 +42,7 @@ const SEASON_GRADIENT: Record<string, string> = {
   summer: 'from-[#C6E5FF] via-[#9DD4FF] to-[#88C0FF]',
   autumn: 'from-[#E0B97A] via-[#C8884E] to-[#8E5A3B]',
   winter: 'from-[#7FAFFF] via-[#5C7CFA] to-[#3A4DB8]',
-  default: 'from-[#A0A0A8] via-[#797980] to-[#4A4A52]',
+  default: 'from-[#FF8FA3] via-[#FFB199] to-[#7FA1FF]',
 };
 
 type SavedItem = { productId: string; savedAt?: string };
