@@ -271,3 +271,114 @@ export const IOSGetButton: React.FC<{ children?: React.ReactNode; onClick?: () =
     {children}
   </button>
 );
+
+// ───────────────────────── Primary action button (iOS large filled) ─────
+export const IOSPrimaryButton: React.FC<
+  React.ButtonHTMLAttributes<HTMLButtonElement> & { loading?: boolean; tone?: 'blue' | 'gradient' | 'red' }
+> = ({ children, loading, tone = 'gradient', className = '', disabled, ...rest }) => {
+  const bg =
+    tone === 'blue'
+      ? 'bg-[#007AFF] active:bg-[#0062CC]'
+      : tone === 'red'
+        ? 'bg-[#FF3B30] active:bg-[#CC2F26]'
+        : 'bg-gradient-to-r from-[#FF8FA3] via-[#FFB199] to-[#7FA1FF] active:opacity-90';
+  return (
+    <button
+      {...rest}
+      disabled={disabled || loading}
+      className={[
+        'w-full h-12 rounded-[14px] text-white text-[17px] font-semibold transition-opacity',
+        bg,
+        disabled || loading ? 'opacity-60' : '',
+        className,
+      ].join(' ')}
+      style={{ minHeight: 48 }}
+    >
+      {loading ? '…' : children}
+    </button>
+  );
+};
+
+// ───────────────────────── Secondary button (subtle) ─────
+export const IOSSecondaryButton: React.FC<
+  React.ButtonHTMLAttributes<HTMLButtonElement>
+> = ({ children, className = '', ...rest }) => (
+  <button
+    {...rest}
+    className={[
+      'w-full h-12 rounded-[14px] text-[#007AFF] text-[17px] font-semibold bg-[#F2F2F7] active:bg-[#E5E5EA]',
+      className,
+    ].join(' ')}
+    style={{ minHeight: 48 }}
+  >
+    {children}
+  </button>
+);
+
+// ───────────────────────── Form field ─────
+export const IOSField = React.forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement> & {
+    label?: string;
+    icon?: React.ReactNode;
+    suffix?: React.ReactNode;
+    error?: string;
+  }
+>(({ label, icon, suffix, error, className = '', ...rest }, ref) => (
+  <div>
+    {label && (
+      <label className="block text-[13px] font-medium text-[#8E8E93] mb-1.5">{label}</label>
+    )}
+    <div
+      className={[
+        'flex items-center gap-2 rounded-[12px] bg-white border h-11 px-3',
+        error ? 'border-[#FF3B30]' : 'border-[#E5E5EA]',
+      ].join(' ')}
+      style={{ minHeight: 44 }}
+    >
+      {icon && <span className="text-[#8E8E93] shrink-0">{icon}</span>}
+      <input
+        ref={ref}
+        {...rest}
+        className={[
+          'flex-1 bg-transparent outline-none text-[17px] text-[#1C1C1E] placeholder:text-[#C7C7CC] min-h-0',
+          className,
+        ].join(' ')}
+        style={{ minHeight: 0 }}
+      />
+      {suffix}
+    </div>
+    {error && <p className="text-[13px] text-[#FF3B30] mt-1">{error}</p>}
+  </div>
+));
+IOSField.displayName = 'IOSField';
+
+// ───────────────────────── Modal / Sheet ─────
+// Centered card on tablet/desktop, bottom sheet on small screens.
+export const IOSModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}> = ({ open, onClose, children }) => {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[60]">
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden
+      />
+      <div className="absolute inset-x-0 bottom-0 sm:inset-0 sm:flex sm:items-center sm:justify-center">
+        <div
+          className="bg-white rounded-t-[24px] sm:rounded-[22px] w-full sm:max-w-md mx-auto shadow-[0_-12px_40px_rgba(0,0,0,0.18)] sm:shadow-[0_20px_60px_rgba(0,0,0,0.22)] [padding-bottom:env(safe-area-inset-bottom)] animate-[slideUp_0.25s_cubic-bezier(0.32,0.72,0,1)] sm:animate-none"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="sm:hidden flex justify-center pt-2">
+            <div className="w-9 h-1 rounded-full bg-[#E5E5EA]" />
+          </div>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};

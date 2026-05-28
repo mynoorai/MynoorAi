@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Palette, Sparkles } from 'lucide-react';
-import { Button } from '@/components/ui';
+import { Palette, Sparkles, Camera, Check } from 'lucide-react';
+import { IOSModal, IOSPrimaryButton, IOSSecondaryButton } from '@/components/ios';
 import { ROUTES } from '@/utils/constants';
 import { trackEvent } from '@/utils/analytics';
 import { useAppStore } from '@/store';
@@ -16,118 +16,80 @@ interface PersonalColorRequiredProps {
 export const PersonalColorRequired: React.FC<PersonalColorRequiredProps> = ({
   isOpen,
   onClose,
-  feature = 'this feature'
+  feature = 'this feature',
 }) => {
   const navigate = useNavigate();
   const { sessionId, setSessionData } = useAppStore();
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleStartDiagnosis = async () => {
+  const handleStart = async (): Promise<void> => {
     trackEvent('personal_color_required_action', {
       action: 'start_diagnosis',
       feature,
-      from_feature: feature
+      from_feature: feature,
     });
-    
-    setIsLoading(true);
-    
+    setLoading(true);
     try {
-      // Check if session exists, if not create one
       if (!sessionId) {
         const response = await SessionAPI.createSession();
         setSessionData(response.data.sessionId);
       }
-      
-      // Navigate to diagnosis
       navigate(ROUTES.DIAGNOSIS);
       onClose();
     } catch (error) {
       console.error('Failed to create session:', error);
-      // Still close modal but stay on current page
       onClose();
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-        onClick={onClose}
-      />
-      
-      {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-md transform transition-all bg-white rounded-2xl shadow-xl">
-          <div className="p-6">
-            {/* Icon */}
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-purple-100 to-pink-100 mb-4">
-              <Palette className="w-8 h-8 text-purple-600" />
-            </div>
+    <IOSModal open={isOpen} onClose={onClose}>
+      <div className="px-6 pt-5 pb-6">
+        <div
+          className="mx-auto w-14 h-14 rounded-[16px] flex items-center justify-center text-white mb-4"
+          style={{ background: 'linear-gradient(135deg,#FF8FA3,#FFB199,#7FA1FF)' }}
+        >
+          <Palette className="w-7 h-7" />
+        </div>
 
-            {/* Content */}
-            <div className="text-center">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Personal color diagnosis required
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Please complete your personal color diagnosis to use {feature}.
-              </p>
-            </div>
+        <h3 className="text-center text-[22px] leading-[28px] font-bold text-[#1C1C1E]">
+          Personal color first
+        </h3>
+        <p className="text-center text-[15px] text-[#8E8E93] mt-1.5">
+          Complete your personal color analysis to unlock {feature}.
+        </p>
 
-            {/* Feature highlights */}
-            <div className="bg-purple-50 rounded-xl p-4 mb-6">
-              <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="w-5 h-5 text-purple-600" />
-                <span className="font-medium text-purple-900">AI personal color diagnosis</span>
-              </div>
-              <ul className="space-y-2 text-sm text-purple-700">
-                <li className="flex items-start gap-2">
-                  <span className="text-purple-400 mt-1">✓</span>
-                  <span>Fast results in about 30 seconds</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-purple-400 mt-1">✓</span>
-                  <span>Spring, Summer, Autumn, Winter type analysis</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-purple-400 mt-1">✓</span>
-                  <span>Personalized color recommendations</span>
-                </li>
-              </ul>
-            </div>
-
-            {/* Actions */}
-            <div className="space-y-3">
-              <Button
-                onClick={handleStartDiagnosis}
-                fullWidth
-                size="lg"
-                disabled={isLoading}
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
-              >
-                {isLoading ? 'Preparing...' : 'Start personal color diagnosis'}
-              </Button>
-              
-              <button
-                onClick={onClose}
-                className="w-full text-center text-sm text-gray-500 hover:text-gray-700"
-              >
-                Maybe later
-              </button>
-            </div>
-
-            {/* Privacy notice */}
-            <p className="mt-4 text-xs text-gray-500 text-center">
-              Uploaded photos are deleted immediately after the analysis.
-            </p>
+        <div className="bg-[#F2F2F7] rounded-[14px] p-4 mt-5">
+          <div className="flex items-center gap-2 mb-2.5">
+            <Sparkles className="w-4 h-4 text-[#AF52DE]" />
+            <span className="text-[14px] font-semibold text-[#1C1C1E]">AI personal color analysis</span>
           </div>
+          <ul className="space-y-2">
+            {[
+              'Results in about 30 seconds',
+              'Spring · Summer · Autumn · Winter',
+              'Personalized hijab & beauty picks',
+            ].map((t, i) => (
+              <li key={i} className="flex items-start gap-2 text-[14px] text-[#1C1C1E]">
+                <Check className="w-4 h-4 text-[#34C759] mt-[2px]" />
+                {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="space-y-2.5 mt-5">
+          <IOSPrimaryButton tone="gradient" onClick={handleStart} loading={loading}>
+            <span className="inline-flex items-center gap-2">
+              <Camera className="w-4 h-4" />
+              {loading ? 'Preparing…' : 'Start analysis'}
+            </span>
+          </IOSPrimaryButton>
+          <IOSSecondaryButton onClick={onClose}>Later</IOSSecondaryButton>
         </div>
       </div>
-    </div>
+    </IOSModal>
   );
 };

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { User, Lock } from 'lucide-react';
-import { Button } from '@/components/ui';
+import { Lock, Sparkles, ShieldCheck, Heart } from 'lucide-react';
+import { IOSModal, IOSPrimaryButton, IOSSecondaryButton } from '@/components/ios';
 import { trackEvent } from '@/utils/analytics';
 
 interface AuthRequiredProps {
@@ -13,110 +13,73 @@ interface AuthRequiredProps {
 export const AuthRequired: React.FC<AuthRequiredProps> = ({
   isOpen,
   onClose,
-  feature = 'this feature'
+  feature = 'this feature',
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleLogin = () => {
+  const handleLogin = (): void => {
     trackEvent('auth_required_action', {
       action: 'navigate_to_login',
       feature,
-      from_path: location.pathname
+      from_path: location.pathname,
     });
-    
-    // Navigate to login with current location as state
     navigate('/login', { state: { from: location } });
     onClose();
   };
 
-  const handleSignup = () => {
+  const handleSignup = (): void => {
     trackEvent('auth_required_action', {
       action: 'navigate_to_signup',
       feature,
-      from_path: location.pathname
+      from_path: location.pathname,
     });
-    
-    // Navigate to signup with current location as state
     navigate('/signup', { state: { from: location } });
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-        onClick={onClose}
-      />
-      
-      {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-md transform transition-all bg-white rounded-2xl shadow-xl">
-          <div className="p-6">
-            {/* Icon */}
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 mb-4">
-              <Lock className="w-8 h-8 text-purple-600" />
-            </div>
+    <IOSModal open={isOpen} onClose={onClose}>
+      <div className="px-6 pt-5 pb-6">
+        <div
+          className="mx-auto w-14 h-14 rounded-[16px] flex items-center justify-center text-white mb-4"
+          style={{ background: 'linear-gradient(135deg,#FF8FA3,#7FA1FF)' }}
+        >
+          <Lock className="w-7 h-7" />
+        </div>
 
-            {/* Content */}
-            <div className="text-center">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Sign-in required
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Please sign in to use {feature}.
-              </p>
-            </div>
+        <h3 className="text-center text-[22px] leading-[28px] font-bold text-[#1C1C1E]">
+          Sign in to continue
+        </h3>
+        <p className="text-center text-[15px] text-[#8E8E93] mt-1.5">
+          Please sign in to use {feature}.
+        </p>
 
-            {/* Actions */}
-            <div className="space-y-3">
-              <Button
-                onClick={handleLogin}
-                fullWidth
-                size="lg"
-                className="bg-purple-600 hover:bg-purple-700 text-white"
-              >
-                Sign in
-              </Button>
-              
-              <Button
-                onClick={handleSignup}
-                variant="outline"
-                fullWidth
-                size="lg"
-              >
-                Create account
-              </Button>
-              
-              <button
-                onClick={onClose}
-                className="w-full text-center text-sm text-gray-500 hover:text-gray-700 mt-3"
-              >
-                Maybe later
-              </button>
-            </div>
+        <ul className="bg-[#F2F2F7] rounded-[14px] p-4 mt-5 space-y-2.5">
+          {[
+            { icon: <Sparkles className="w-4 h-4 text-[#FF9500]" />, text: 'Save your personal color result' },
+            { icon: <Heart className="w-4 h-4 text-[#FF3B30]" />, text: 'Save & curate favorite items' },
+            { icon: <ShieldCheck className="w-4 h-4 text-[#34C759]" />, text: 'Private & secure cloud sync' },
+          ].map((b, i) => (
+            <li key={i} className="flex items-start gap-2.5">
+              <span className="mt-[2px]">{b.icon}</span>
+              <span className="text-[14px] text-[#1C1C1E]">{b.text}</span>
+            </li>
+          ))}
+        </ul>
 
-            {/* Additional info */}
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <div className="flex items-start gap-3">
-                <User className="w-5 h-5 text-gray-400 mt-0.5" />
-                <div className="text-sm text-gray-600">
-                  <p className="font-medium mb-1">Benefits</p>
-                  <ul className="space-y-1 text-gray-500">
-                    <li>• Save your personal color diagnosis</li>
-                    <li>• Receive tailored product recommendations</li>
-                    <li>• Manage favorite products</li>
-                    <li>• Review your purchase history</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="space-y-2.5 mt-5">
+          <IOSPrimaryButton tone="gradient" onClick={handleLogin}>Sign In</IOSPrimaryButton>
+          <IOSSecondaryButton onClick={handleSignup}>Create Account</IOSSecondaryButton>
+          <button
+            onClick={onClose}
+            className="w-full text-center text-[15px] text-[#8E8E93] py-2 min-h-0"
+            style={{ minHeight: 32 }}
+          >
+            Maybe later
+          </button>
         </div>
       </div>
-    </div>
+    </IOSModal>
   );
 };

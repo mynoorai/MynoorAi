@@ -2,12 +2,19 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
+import { Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+
 import { useAuthStore } from '@/store/useAuthStore';
-import { PageLayout } from '@/components/layout';
-import { Button, Input, Card, Text } from '@/components/ui';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { trackEvent } from '@/utils/analytics';
 import { LANDING_URL } from '@/utils/constants';
+import {
+  iosPage,
+  iosCard,
+  IOSLargeTitle,
+  IOSField,
+  IOSPrimaryButton,
+  IOSSecondaryButton,
+} from '@/components/ios';
 
 interface LoginFormData {
   email: string;
@@ -24,218 +31,134 @@ const LoginPage = (): JSX.Element => {
     register,
     handleSubmit,
     formState: { errors },
-    setFocus
+    setFocus,
   } = useForm<LoginFormData>();
 
-  // Get redirect URL from location state or default to home page
-  const locationState = location.state as { from?: { pathname?: string } } | null;
-  const from = LANDING_URL; // 로그인 성공 시 무조건 외부 랜딩 URL로 이동
-
-  // If already authenticated, redirect
   useEffect(() => {
-    if (isAuthenticated) {
-      // 인증 상태면 지정된 랜딩 URL로 강제 이동
-      window.location.assign(LANDING_URL);
-    }
+    if (isAuthenticated) window.location.assign(LANDING_URL);
   }, [isAuthenticated]);
 
-  // Track page visit
   useEffect(() => {
-    trackEvent('login_page_view', {
-      page: 'login',
-      referrer: document.referrer
-    });
+    trackEvent('login_page_view', { page: 'login', referrer: document.referrer });
   }, []);
 
-  // Clear errors when component unmounts
-  useEffect(() => {
-    return () => {
-      clearError();
-    };
-  }, [clearError]);
+  useEffect(() => () => { clearError(); }, [clearError]);
+  useEffect(() => { setFocus('email'); }, [setFocus]);
 
-  // Focus email field on mount
-  useEffect(() => {
-    setFocus('email');
-  }, [setFocus]);
-
-  const onSubmit = async (data: LoginFormData) => {
+  const onSubmit = async (data: LoginFormData): Promise<void> => {
     try {
-      trackEvent('login_attempt', {
-        email: data.email,
-        page: 'login'
-      });
-
+      trackEvent('login_attempt', { email: data.email, page: 'login' });
       await login(data.email, data.password);
-      
-      trackEvent('login_success', {
-        email: data.email,
-        page: 'login'
-      });
-
-      toast.success('Signed in successfully!');
-      // 로그인 성공 후 무조건 지정된 랜딩 URL로 이동
+      trackEvent('login_success', { email: data.email, page: 'login' });
+      toast.success('Signed in');
       window.location.assign(LANDING_URL);
-    } catch (error: unknown) {
+    } catch (e: unknown) {
       trackEvent('login_failed', {
         email: data.email,
-        error: error instanceof Error ? error.message : String(error),
-        page: 'login'
+        error: e instanceof Error ? e.message : String(e),
+        page: 'login',
       });
-
-      const message =
-        (typeof error === 'object' &&
-          error !== null &&
-          'response' in error &&
-          (error as { response?: { data?: { message?: string } } })?.response?.data?.message) ||
-        (error instanceof Error ? error.message : undefined) ||
+      const msg =
+        (typeof e === 'object' && e && 'response' in e &&
+          (e as { response?: { data?: { message?: string } } }).response?.data?.message) ||
+        (e instanceof Error ? e.message : undefined) ||
         'Failed to sign in.';
-
-      toast.error(message);
+      toast.error(msg);
     }
   };
 
   return (
-    <PageLayout showDefaultHeader>
-      <div className="min-h-screen flex items-center justify-center px-4 py-12">
-        <Card className="w-full max-w-md p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Sign In</h1>
-          </div>
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div>
-              <Input
-                type="email"
-                label="Email"
-                placeholder="your@email.com"
-                autoComplete="username"
-                {...register('email', {
-                  required: 'Please enter your email address.',
-                  pattern: {
-                    value: /^\S+@\S+$/i,
-                    message: 'Please enter a valid email address.'
-                  }
-                })}
-                error={errors.email?.message}
-                leftIcon={<Mail className="w-5 h-5 text-gray-400" />}
-                fullWidth
-              />
-            </div>
-
-            <div>
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                label="Password"
-                placeholder="••••••••"
-                autoComplete="current-password"
-                {...register('password', {
-                  required: 'Please enter your password.',
-                  minLength: {
-                    value: 6,
-                    message: 'Passwords must be at least 6 characters long.'
-                  }
-                })}
-                error={errors.password?.message}
-                leftIcon={<Lock className="w-5 h-5 text-gray-400" />}
-                rightIcon={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="p-1 hover:bg-gray-100 rounded"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5 text-gray-400" />
-                    ) : (
-                      <Eye className="w-5 h-5 text-gray-400" />
-                    )}
-                  </button>
-                }
-                fullWidth
-              />
-            </div>
-
-            {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-600">{error}</p>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  className="mr-2 rounded border-gray-300 text-primary focus:ring-primary"
-                />
-                <span className="text-gray-600">Keep me signed in</span>
-              </label>
-              <div className="flex flex-col items-end gap-1 text-right">
-                <Link
-                  to="/find-account"
-                  className="text-primary hover:underline"
-                >
-                  Forgot email?
-                </Link>
-                <Link
-                  to="/forgot-password"
-                  className="text-primary hover:underline"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              fullWidth
-              size="lg"
-              loading={isLoading}
-              disabled={isLoading}
-            >
-              Sign In
-            </Button>
-          </form>
-
-          <div className="mt-6 bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
-            <Text variant="body-sm" color="gray" mb="2">
-              New to mynoor ai?
-            </Text>
-            <Link to="/signup">
-              <Button fullWidth size="lg" variant="outline">
-                Create an account
-              </Button>
-            </Link>
-          </div>
-
-          <div className="mt-8">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-gray-500">or</span>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <Link to="/">
-                <Button
-                  variant="secondary"
-                  fullWidth
-                  size="lg"
-                >
-                  Continue without signing in
-                </Button>
-              </Link>
-              <Text variant="caption" color="gray" align="center" mt="2">
-                You can still get a personal color analysis without signing in.
-              </Text>
-            </div>
-          </div>
-        </Card>
+    <div className={iosPage + ' pb-10'}>
+      <div className="px-4 pt-3 pb-2 flex items-center justify-between">
+        <button
+          onClick={() => (location.key !== 'default' ? navigate(-1) : navigate('/'))}
+          className="flex items-center gap-1 text-[#007AFF] text-[17px] font-medium min-h-0"
+          style={{ minHeight: 32 }}
+        >
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
       </div>
-    </PageLayout>
+
+      <IOSLargeTitle title="Sign In" subtitle="Welcome back to MyNoor AI" />
+
+      <div className="px-4 mt-2">
+        <form onSubmit={handleSubmit(onSubmit)} className={`${iosCard} p-5 space-y-4`}>
+          <IOSField
+            type="email"
+            label="Email"
+            placeholder="your@email.com"
+            autoComplete="username"
+            icon={<Mail className="w-4 h-4" />}
+            {...register('email', {
+              required: 'Enter your email.',
+              pattern: { value: /^\S+@\S+$/i, message: 'Invalid email.' },
+            })}
+            error={errors.email?.message}
+          />
+
+          <IOSField
+            type={showPassword ? 'text' : 'password'}
+            label="Password"
+            placeholder="••••••••"
+            autoComplete="current-password"
+            icon={<Lock className="w-4 h-4" />}
+            suffix={
+              <button
+                type="button"
+                onClick={() => setShowPassword((s) => !s)}
+                className="text-[#8E8E93] min-h-0"
+                style={{ minHeight: 24 }}
+                tabIndex={-1}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            }
+            {...register('password', {
+              required: 'Enter your password.',
+              minLength: { value: 6, message: 'Min 6 characters.' },
+            })}
+            error={errors.password?.message}
+          />
+
+          {error && (
+            <div className="text-[13px] text-[#FF3B30] bg-[#FFE5E3] rounded-[12px] px-3 py-2">
+              {error}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-1">
+            <Link to="/find-account" className="text-[#007AFF] text-[14px] font-medium">Forgot email?</Link>
+            <Link to="/forgot-password" className="text-[#007AFF] text-[14px] font-medium">Forgot password?</Link>
+          </div>
+
+          <IOSPrimaryButton tone="gradient" type="submit" loading={isLoading}>Sign In</IOSPrimaryButton>
+        </form>
+      </div>
+
+      <div className="px-4 mt-4">
+        <div className={`${iosCard} p-4 text-center`}>
+          <p className="text-[14px] text-[#8E8E93] mb-3">New to MyNoor AI?</p>
+          <Link to="/signup">
+            <IOSSecondaryButton>Create Account</IOSSecondaryButton>
+          </Link>
+        </div>
+      </div>
+
+      <div className="px-4 mt-4">
+        <Link to="/">
+          <button
+            className="w-full text-center text-[15px] text-[#8E8E93] py-3"
+            style={{ minHeight: 36 }}
+          >
+            Continue without signing in
+          </button>
+        </Link>
+        <p className="text-center text-[12px] text-[#C7C7CC] mt-1">
+          Personal color analysis works without an account.
+        </p>
+      </div>
+    </div>
   );
 };
 

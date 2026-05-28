@@ -1,13 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
+import { Mail, Lock, Eye, EyeOff, User, Check, ArrowLeft } from 'lucide-react';
+
 import { useAuthStore } from '@/store/useAuthStore';
-import { PageLayout } from '@/components/layout';
-import { Button, Input, Card, Text, ConfirmModal } from '@/components/ui';
-import { Mail, Lock, Eye, EyeOff, User, Check } from 'lucide-react';
+import { ConfirmModal } from '@/components/ui';
 import { trackEvent } from '@/utils/analytics';
 import { ROUTES, LANDING_URL } from '@/utils/constants';
+import {
+  iosPage,
+  iosCard,
+  IOSLargeTitle,
+  IOSField,
+  IOSPrimaryButton,
+  IOSSecondaryButton,
+} from '@/components/ios';
 
 interface SignupFormData {
   fullName: string;
@@ -17,38 +25,34 @@ interface SignupFormData {
   agreeToTerms: boolean;
 }
 
-const PasswordStrengthIndicator = ({ password }: { password: string }) => {
-  const getStrength = () => {
-    if (!password) return 0;
-    let strength = 0;
-    if (password.length >= 8) strength++;
-    if (password.match(/[a-z]/) && password.match(/[A-Z]/)) strength++;
-    if (password.match(/[0-9]/)) strength++;
-    if (password.match(/[^a-zA-Z0-9]/)) strength++;
-    return strength;
-  };
-
-  const strength = getStrength();
-  const colors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500'];
-  const labels = ['Weak', 'Moderate', 'Strong', 'Very Strong'];
-
-  return password ? (
+const PasswordStrengthIndicator = ({ password }: { password: string }): JSX.Element | null => {
+  if (!password) return null;
+  const score = (() => {
+    let s = 0;
+    if (password.length >= 8) s++;
+    if (password.match(/[a-z]/) && password.match(/[A-Z]/)) s++;
+    if (password.match(/[0-9]/)) s++;
+    if (password.match(/[^a-zA-Z0-9]/)) s++;
+    return s;
+  })();
+  const colors = ['#FF3B30', '#FF9500', '#FFCC00', '#34C759'];
+  const labels = ['Weak', 'Moderate', 'Strong', 'Very strong'];
+  return (
     <div className="mt-2">
-      <div className="flex gap-1 mb-1">
-        {[...Array(4)].map((_, i) => (
+      <div className="flex gap-1">
+        {[0, 1, 2, 3].map((i) => (
           <div
             key={i}
-            className={`h-1 flex-1 rounded ${
-              i < strength ? colors[strength - 1] : 'bg-gray-200'
-            }`}
+            className="h-1 flex-1 rounded-full"
+            style={{ background: i < score ? colors[score - 1] : '#E5E5EA' }}
           />
         ))}
       </div>
-      <Text variant="caption" color="gray">
-        Password strength: <span className="font-medium">{labels[strength - 1]}</span>
-      </Text>
+      <p className="text-[12px] text-[#8E8E93] mt-1">
+        Strength: <span className="font-medium text-[#1C1C1E]">{labels[score - 1] ?? '—'}</span>
+      </p>
     </div>
-  ) : null;
+  );
 };
 
 const SignupPage = (): JSX.Element => {
@@ -63,292 +67,206 @@ const SignupPage = (): JSX.Element => {
     handleSubmit,
     watch,
     formState: { errors },
-    setFocus
+    setFocus,
   } = useForm<SignupFormData>();
 
   const password = watch('password');
 
-  // If already authenticated, redirect to landing page
   useEffect(() => {
-    if (isAuthenticated) {
-      // 인증 상태면 지정된 랜딩 URL로 강제 이동
-      window.location.assign(LANDING_URL);
-    }
+    if (isAuthenticated) window.location.assign(LANDING_URL);
   }, [isAuthenticated]);
 
-  // Track page visit
   useEffect(() => {
-    trackEvent('signup_page_view', {
-      page: 'signup',
-      referrer: document.referrer
-    });
+    trackEvent('signup_page_view', { page: 'signup', referrer: document.referrer });
   }, []);
 
-  // Clear errors when component unmounts
-  useEffect(() => {
-    return () => {
-      clearError();
-    };
-  }, [clearError]);
+  useEffect(() => () => { clearError(); }, [clearError]);
+  useEffect(() => { setFocus('fullName'); }, [setFocus]);
 
-  // Focus name field on mount
-  useEffect(() => {
-    setFocus('fullName');
-  }, [setFocus]);
-
-  const onSubmit = async (data: SignupFormData) => {
+  const onSubmit = async (data: SignupFormData): Promise<void> => {
     try {
-      trackEvent('signup_attempt', {
-        email: data.email,
-        page: 'signup'
-      });
-
+      trackEvent('signup_attempt', { email: data.email, page: 'signup' });
       await signup(data.email, data.password, data.fullName);
-      
-      trackEvent('signup_success', {
-        email: data.email,
-        page: 'signup'
-      });
-
-      toast.success('Sign-up complete!');
-      // 회원가입 직후에는 로그인 상태가 아니므로, 랜딩 이동만 수행
+      trackEvent('signup_success', { email: data.email, page: 'signup' });
+      toast.success('Account created');
       window.location.assign(LANDING_URL);
-    } catch (error: unknown) {
+    } catch (e: unknown) {
       trackEvent('signup_failed', {
         email: data.email,
-        error: error instanceof Error ? error.message : String(error),
-        page: 'signup'
+        error: e instanceof Error ? e.message : String(e),
+        page: 'signup',
       });
-
-      const message =
-        (typeof error === 'object' &&
-          error !== null &&
-          'response' in error &&
-          (error as { response?: { data?: { message?: string } } })?.response
-            ?.data?.message) ||
-        (error instanceof Error ? error.message : undefined) ||
+      const msg =
+        (typeof e === 'object' && e && 'response' in e &&
+          (e as { response?: { data?: { message?: string } } }).response?.data?.message) ||
+        (e instanceof Error ? e.message : undefined) ||
         'Failed to sign up.';
-      
-      toast.error(message);
-
-      // If backend responded with 409 (account exists), show guidance modal
+      toast.error(msg);
       const status =
-        (typeof error === 'object' && error !== null && 'status' in error
-          ? (error as { status?: number }).status
-          : undefined);
-      if (status === 409) {
-        setShowAccountExistsModal(true);
-      }
+        typeof e === 'object' && e && 'response' in e &&
+        (e as { response?: { status?: number } }).response?.status;
+      if (status === 409) setShowAccountExistsModal(true);
     }
   };
 
   return (
-    <PageLayout showDefaultHeader>
-      <div className="min-h-screen flex items-center justify-center px-4 py-12">
-        <Card className="w-full max-w-md p-8">
-          <div className="text-center mb-8">
-            <Text variant="h1" color="gray" mb="2">Create Account</Text>
-            <Text color="gray">
-              Already have an account?{' '}
-              <Link to="/login" className="text-primary-400 hover:text-primary-600 hover:underline transition-colors">
-                Sign In
-              </Link>
-            </Text>
-          </div>
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div>
-              <Input
-                type="text"
-                label="Full Name"
-                placeholder="Jane Doe"
-                autoComplete="name"
-                {...register('fullName', {
-                  required: 'Please enter your name.',
-                  minLength: {
-                    value: 2,
-                    message: 'Name must be at least 2 characters long.'
-                  }
-                })}
-                error={errors.fullName?.message}
-                leftIcon={<User className="w-5 h-5 text-gray-400" />}
-                fullWidth
-              />
-            </div>
-
-            {error && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-                <p className="text-sm text-red-600">{error}</p>
-              </div>
-            )}
-
-            <div>
-              <Input
-                type="email"
-                label="Email"
-                placeholder="your@email.com"
-                autoComplete="email"
-                {...register('email', {
-                  required: 'Please enter your email address.',
-                  pattern: {
-                    value: /^\S+@\S+$/i,
-                    message: 'Please enter a valid email address.'
-                  }
-                })}
-                error={errors.email?.message}
-                leftIcon={<Mail className="w-5 h-5 text-gray-400" />}
-                fullWidth
-              />
-            </div>
-
-            <div>
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                label="Password"
-                placeholder="••••••••"
-                autoComplete="new-password"
-                {...register('password', {
-                  required: 'Please enter a password.',
-                  minLength: {
-                    value: 8,
-                    message: 'Passwords must be at least 8 characters long.'
-                  },
-                  pattern: {
-                    value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-                    message: 'Passwords must include upper and lower case letters, a number, and a special character.'
-                  }
-                })}
-                error={errors.password?.message}
-                leftIcon={<Lock className="w-5 h-5 text-gray-400" />}
-                rightIcon={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="p-1 hover:bg-gray-100 rounded"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5 text-gray-400" />
-                    ) : (
-                      <Eye className="w-5 h-5 text-gray-400" />
-                    )}
-                  </button>
-                }
-                fullWidth
-              />
-              <PasswordStrengthIndicator password={password} />
-            </div>
-
-            <div>
-              <Input
-                type={showConfirmPassword ? 'text' : 'password'}
-                label="Confirm Password"
-                placeholder="••••••••"
-                autoComplete="new-password"
-                {...register('confirmPassword', {
-                  required: 'Please re-enter your password.',
-                  validate: value =>
-                    value === password || 'Passwords do not match.'
-                })}
-                error={errors.confirmPassword?.message}
-                leftIcon={<Lock className="w-5 h-5 text-gray-400" />}
-                rightIcon={
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="p-1 hover:bg-gray-100 rounded"
-                    tabIndex={-1}
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="w-5 h-5 text-gray-400" />
-                    ) : (
-                      <Eye className="w-5 h-5 text-gray-400" />
-                    )}
-                  </button>
-                }
-                fullWidth
-              />
-            </div>
-
-            <div className="space-y-3">
-              <label className="flex items-start">
-                <input
-                  type="checkbox"
-                  {...register('agreeToTerms', {
-                    required: 'Please agree to the terms of service.'
-                  })}
-                  className="mt-1 mr-2 rounded border-gray-300 text-primary-400 focus:ring-primary-400"
-                />
-                <span className="text-sm text-gray-600">
-                  <Link to={ROUTES.TERMS_OF_SERVICE} className="text-primary hover:underline">
-                    Terms of Service
-                  </Link>
-                  {' and '}
-                  <Link to="/privacy" className="text-primary hover:underline">
-                    Privacy Policy
-                  </Link>
-                  . I agree to both.
-                </span>
-              </label>
-              {errors.agreeToTerms && (
-                <p className="text-sm text-red-600 ml-6">{errors.agreeToTerms.message}</p>
-              )}
-            </div>
-
-            {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-600">{error}</p>
-              </div>
-            )}
-
-            <Button
-              type="submit"
-              fullWidth
-              size="lg"
-              loading={isLoading}
-              disabled={isLoading}
-            >
-              Sign Up
-            </Button>
-          </form>
-
-          <div className="mt-6 space-y-2">
-            <div className="flex items-center text-sm text-gray-600">
-              <Check className="w-4 h-4 text-green-500 mr-2" />
-              <span>Secure password encryption</span>
-            </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <Check className="w-4 h-4 text-green-500 mr-2" />
-              <span>Privacy-first data policy</span>
-            </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <Check className="w-4 h-4 text-green-500 mr-2" />
-              <span>Cancel anytime</span>
-            </div>
-          </div>
-        </Card>
+    <div className={iosPage + ' pb-10'}>
+      <div className="px-4 pt-3 pb-2">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-1 text-[#007AFF] text-[17px] font-medium min-h-0"
+          style={{ minHeight: 32 }}
+        >
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
       </div>
+
+      <IOSLargeTitle title="Create Account" subtitle="Join MyNoor AI" />
+
+      <div className="px-4 mt-2">
+        <form onSubmit={handleSubmit(onSubmit)} className={`${iosCard} p-5 space-y-4`}>
+          <IOSField
+            type="text"
+            label="Full name"
+            placeholder="Jane Doe"
+            autoComplete="name"
+            icon={<User className="w-4 h-4" />}
+            {...register('fullName', {
+              required: 'Enter your name.',
+              minLength: { value: 2, message: 'Min 2 characters.' },
+            })}
+            error={errors.fullName?.message}
+          />
+          <IOSField
+            type="email"
+            label="Email"
+            placeholder="your@email.com"
+            autoComplete="email"
+            icon={<Mail className="w-4 h-4" />}
+            {...register('email', {
+              required: 'Enter your email.',
+              pattern: { value: /^\S+@\S+$/i, message: 'Invalid email.' },
+            })}
+            error={errors.email?.message}
+          />
+          <div>
+            <IOSField
+              type={showPassword ? 'text' : 'password'}
+              label="Password"
+              placeholder="••••••••"
+              autoComplete="new-password"
+              icon={<Lock className="w-4 h-4" />}
+              suffix={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  className="text-[#8E8E93] min-h-0"
+                  style={{ minHeight: 24 }}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              }
+              {...register('password', {
+                required: 'Enter a password.',
+                minLength: { value: 8, message: 'Min 8 characters.' },
+                pattern: {
+                  value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+                  message: 'Need upper + lower + number + special.',
+                },
+              })}
+              error={errors.password?.message}
+            />
+            <PasswordStrengthIndicator password={password || ''} />
+          </div>
+          <IOSField
+            type={showConfirmPassword ? 'text' : 'password'}
+            label="Confirm password"
+            placeholder="••••••••"
+            autoComplete="new-password"
+            icon={<Lock className="w-4 h-4" />}
+            suffix={
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((s) => !s)}
+                className="text-[#8E8E93] min-h-0"
+                style={{ minHeight: 24 }}
+                tabIndex={-1}
+              >
+                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            }
+            {...register('confirmPassword', {
+              required: 'Re-enter your password.',
+              validate: (v) => v === password || 'Passwords do not match.',
+            })}
+            error={errors.confirmPassword?.message}
+          />
+
+          <label className="flex items-start gap-2 text-[13px] text-[#1C1C1E]">
+            <input
+              type="checkbox"
+              className="mt-[3px] rounded border-[#C7C7CC]"
+              {...register('agreeToTerms', { required: 'Please agree to the terms.' })}
+            />
+            <span>
+              I agree to the{' '}
+              <Link to={ROUTES.TERMS_OF_SERVICE} className="text-[#007AFF]">Terms</Link>
+              {' '}and{' '}
+              <Link to={ROUTES.PRIVACY_POLICY} className="text-[#007AFF]">Privacy</Link>.
+            </span>
+          </label>
+          {errors.agreeToTerms && (
+            <p className="text-[13px] text-[#FF3B30] -mt-2">{errors.agreeToTerms.message}</p>
+          )}
+
+          {error && (
+            <div className="text-[13px] text-[#FF3B30] bg-[#FFE5E3] rounded-[12px] px-3 py-2">
+              {error}
+            </div>
+          )}
+
+          <IOSPrimaryButton tone="gradient" type="submit" loading={isLoading}>
+            Create Account
+          </IOSPrimaryButton>
+        </form>
+      </div>
+
+      <div className="px-4 mt-4">
+        <div className={`${iosCard} p-4 text-center`}>
+          <p className="text-[14px] text-[#8E8E93] mb-3">Already have an account?</p>
+          <Link to="/login">
+            <IOSSecondaryButton>Sign In</IOSSecondaryButton>
+          </Link>
+        </div>
+      </div>
+
+      <ul className="px-6 mt-4 space-y-1.5">
+        {['Encrypted password', 'Privacy-first', 'Cancel anytime'].map((t) => (
+          <li key={t} className="flex items-center gap-2 text-[13px] text-[#8E8E93]">
+            <Check className="w-3.5 h-3.5 text-[#34C759]" /> {t}
+          </li>
+        ))}
+      </ul>
+
       <ConfirmModal
         isOpen={showAccountExistsModal}
         type="info"
         title="Account already exists"
-        message={
-          'An account with this email already exists. Please sign in instead.'
-        }
+        message="An account with this email already exists. Please sign in instead."
         extra={
-          <div className="text-sm text-gray-600">
-            Forgot your password?{' '}
+          <div className="text-[13px] text-[#8E8E93]">
+            Forgot password?{' '}
             <Link
               to="/forgot-password"
-              className="text-primary-600 hover:text-primary-700 hover:underline"
+              className="text-[#007AFF]"
               onClick={() => setShowAccountExistsModal(false)}
             >
-              Reset it here
+              Reset
             </Link>
-            .
           </div>
         }
-        confirmText="Go to Login"
+        confirmText="Go to Sign In"
         cancelText="Close"
         onConfirm={() => {
           setShowAccountExistsModal(false);
@@ -356,7 +274,7 @@ const SignupPage = (): JSX.Element => {
         }}
         onCancel={() => setShowAccountExistsModal(false)}
       />
-    </PageLayout>
+    </div>
   );
 };
 
