@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Search, X, Filter } from 'lucide-react';
 import { Button } from '@/components/ui';
-import type { ProductCategory, PersonalColorType } from '@/types/admin';
-import { CATEGORY_LABELS, PERSONAL_COLOR_LABELS } from '@/types/admin';
+import type { ProductCategory, PersonalColorType } from '@/types';
+import { CATEGORY_LABELS, PERSONAL_COLOR_LABELS } from '@/types';
 
 interface ProductFiltersProps {
   searchTerm: string;
@@ -21,14 +21,20 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
   onCategoryToggle,
   selectedColors,
   onColorToggle,
-  onClearFilters
+  onClearFilters,
 }) => {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   const categories: ProductCategory[] = ['hijab', 'blush', 'lip', 'lens'];
-  const personalColors: PersonalColor[] = ['spring_warm', 'autumn_warm', 'summer_cool', 'winter_cool'];
+  const personalColors: PersonalColor[] = [
+    'spring_warm',
+    'autumn_warm',
+    'summer_cool',
+    'winter_cool',
+  ];
 
-  const hasActiveFilters = selectedCategories.length > 0 || selectedColors.length > 0 || searchTerm.length > 0;
+  const hasActiveFilters =
+    selectedCategories.length > 0 || selectedColors.length > 0 || searchTerm.length > 0;
 
   const FilterContent = () => (
     <>
@@ -131,8 +137,11 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
 
       {/* Mobile Filters Overlay */}
       {showMobileFilters && (
-        <div className="lg:hidden fixed inset-0 z-50 bg-black bg-opacity-50" onClick={() => setShowMobileFilters(false)}>
-          <div 
+        <div
+          className="lg:hidden fixed inset-0 z-50 bg-black bg-opacity-50"
+          onClick={() => setShowMobileFilters(false)}
+        >
+          <div
             className="absolute right-0 top-0 h-full w-80 max-w-full bg-white shadow-xl p-6 overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >

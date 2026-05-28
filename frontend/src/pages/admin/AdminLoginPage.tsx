@@ -5,7 +5,6 @@ import { Button, Input, Card } from '@/components/ui';
 import { PageLayout } from '@/components/layout';
 import { trackEvent, trackError, trackEngagement } from '@/utils/analytics';
 import { Lock } from 'lucide-react';
-import { AdminAPI } from '@/services/api/admin';
 
 const ADMIN_ROLES = ['admin', 'content_manager'];
 
@@ -18,7 +17,7 @@ const AdminLoginPage = (): JSX.Element => {
     user,
     isLoading,
     error: authError,
-    clearError
+    clearError,
   } = useAuthStore();
   const isAdminSession = useAuthStore((s) => s.isAdminSession);
   const [email, setEmail] = useState('');
@@ -52,7 +51,7 @@ const AdminLoginPage = (): JSX.Element => {
     trackEvent('admin_login_attempt', {
       method: 'password',
       email,
-      user_flow_step: 'admin_login_submitted'
+      user_flow_step: 'admin_login_submitted',
     });
     trackEngagement('admin_login', 'login_attempt');
 
@@ -63,18 +62,16 @@ const AdminLoginPage = (): JSX.Element => {
       navigate('/admin/dashboard', { replace: true });
       trackEvent('admin_login_success', {
         user_flow_step: 'admin_login_successful',
-        role: useAuthStore.getState().user?.role || 'unknown'
+        role: useAuthStore.getState().user?.role || 'unknown',
       });
     } catch (err) {
       const message =
-        err instanceof Error
-          ? err.message
-          : '로그인에 실패했습니다. 다시 시도하세요.';
+        err instanceof Error ? err.message : '로그인에 실패했습니다. 다시 시도하세요.';
       trackError('admin_login_error', message, 'admin_login');
       trackEvent('admin_login_failed', {
         failure_reason: 'invalid_credentials',
         email,
-        message
+        message,
       });
       setError(message);
     }
@@ -128,7 +125,9 @@ const AdminLoginPage = (): JSX.Element => {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-500">접근 권한이 필요하면 시스템 관리자에게 문의하세요.</p>
+            <p className="text-sm text-gray-500">
+              접근 권한이 필요하면 시스템 관리자에게 문의하세요.
+            </p>
           </div>
         </Card>
       </div>

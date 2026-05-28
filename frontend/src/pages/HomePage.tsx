@@ -6,9 +6,8 @@ import { ProductAPI } from '@/services/api/products';
 import { ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { AuthRequired, PersonalColorRequired } from '@/components/auth';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
-import { Text, LoadingSpinner } from '@/components/ui';
+import { Text } from '@/components/ui';
 import { getImageUrl } from '@/utils/imageUrl';
-import { tokens } from '@/design-system';
 import type { Content, Product } from '@/types';
 
 const IMAGE_FALLBACK = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
@@ -22,9 +21,9 @@ const HomePage = (): JSX.Element => {
     authModalFeature,
     personalColorModalFeature,
     closeAuthModal,
-    closePersonalColorModal
+    closePersonalColorModal,
   } = useRequireAuth();
-  
+
   const [featuredContents, setFeaturedContents] = useState<Content[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -37,13 +36,13 @@ const HomePage = (): JSX.Element => {
   const loadData = async (): Promise<void> => {
     try {
       setLoading(true);
-      
+
       // Load featured contents and products
       const [contentsRes, productsRes] = await Promise.all([
         ContentAPI.getPopularContents(5),
-        ProductAPI.getProducts()
+        ProductAPI.getProducts(),
       ]);
-      
+
       setFeaturedContents(contentsRes.data);
       // Take first 6 products (public API already filters active products)
       setProducts(productsRes.data.slice(0, 6));
@@ -75,7 +74,7 @@ const HomePage = (): JSX.Element => {
       style: 'currency',
       currency: 'IDR',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(price);
   };
 
@@ -95,12 +94,11 @@ const HomePage = (): JSX.Element => {
   return (
     <PageLayout showDefaultHeader>
       <div className="max-w-7xl mx-auto">
-
         {/* Content Carousel - Optional */}
         {featuredContents.length > 0 ? (
           <div className="relative mb-8 -mx-4 md:mx-0">
             <div className="relative h-[400px] md:h-[500px] overflow-hidden rounded-none md:rounded-2xl">
-              <div 
+              <div
                 className="flex transition-transform duration-500 ease-in-out h-full"
                 style={{ transform: `translateX(-${currentSlide * 100}%)` }}
               >
@@ -121,11 +119,12 @@ const HomePage = (): JSX.Element => {
                       }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                    
+
                     <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 text-white">
                       <div className="flex items-center gap-2 mb-3">
                         <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-sm">
-                          {ContentAPI.getCategoryIcon(content.category)} {ContentAPI.getCategoryDisplayName(content.category)}
+                          {ContentAPI.getCategoryIcon(content.category)}{' '}
+                          {ContentAPI.getCategoryDisplayName(content.category)}
                         </span>
                         {content.viewCount > 100 && (
                           <span className="px-3 py-1 bg-primary-400/80 backdrop-blur-sm rounded-full text-sm">
@@ -133,28 +132,16 @@ const HomePage = (): JSX.Element => {
                           </span>
                         )}
                       </div>
-                      <Text 
-                        as="h2" 
-                        variant="h1" 
-                        mb="2"
-                        className="text-3xl md:text-4xl"
-                      >
+                      <Text as="h2" variant="h1" mb="2" className="text-3xl md:text-4xl">
                         {content.title}
                       </Text>
                       {content.subtitle && (
-                        <Text 
-                          variant="body-lg" 
-                          mb="3"
-                          className="opacity-90 text-lg md:text-xl"
-                        >
+                        <Text variant="body-lg" mb="3" className="opacity-90 text-lg md:text-xl">
                           {content.subtitle}
                         </Text>
                       )}
                       {content.excerpt && (
-                        <Text 
-                          variant="body-sm" 
-                          className="opacity-80 line-clamp-2"
-                        >
+                        <Text variant="body-sm" className="opacity-80 line-clamp-2">
                           {content.excerpt}
                         </Text>
                       )}
@@ -165,13 +152,19 @@ const HomePage = (): JSX.Element => {
 
               {/* Navigation arrows */}
               <button
-                onClick={(e) => { e.stopPropagation(); prevSlide(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  prevSlide();
+                }}
                 className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-black/30 backdrop-blur-sm text-white rounded-full hover:bg-black/50 transition-colors"
               >
                 <ChevronLeft className="w-6 h-6" />
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); nextSlide(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  nextSlide();
+                }}
                 className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black/30 backdrop-blur-sm text-white rounded-full hover:bg-black/50 transition-colors"
               >
                 <ChevronRight className="w-6 h-6" />
@@ -182,11 +175,12 @@ const HomePage = (): JSX.Element => {
                 {featuredContents.map((_, index) => (
                   <button
                     key={index}
-                    onClick={(e) => { e.stopPropagation(); goToSlide(index); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      goToSlide(index);
+                    }}
                     className={`w-1 h-1 rounded-full transition-all ${
-                      index === currentSlide 
-                        ? 'bg-white w-2' 
-                        : 'bg-white/60 hover:bg-white/80'
+                      index === currentSlide ? 'bg-white w-2' : 'bg-white/60 hover:bg-white/80'
                     }`}
                   />
                 ))}
@@ -201,7 +195,9 @@ const HomePage = (): JSX.Element => {
                 <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Eye className="w-10 h-10 text-gray-400" />
                 </div>
-                <Text variant="h3" color="gray" mb="2">Content coming soon!</Text>
+                <Text variant="h3" color="gray" mb="2">
+                  Content coming soon!
+                </Text>
                 <Text variant="body" color="gray" className="opacity-70">
                   Amazing beauty tips and color guides are on the way!
                 </Text>
@@ -214,7 +210,9 @@ const HomePage = (): JSX.Element => {
         {products.length > 0 ? (
           <div className="mb-12">
             <div className="flex items-center justify-between mb-6">
-              <Text variant="h2" color="gray">Recommended for You</Text>
+              <Text variant="h2" color="gray">
+                Recommended for You
+              </Text>
               <button
                 onClick={() => {
                   if (checkAuth('product catalog')) {
@@ -224,13 +222,18 @@ const HomePage = (): JSX.Element => {
                 className="px-4 py-2 text-primary-400 hover:text-primary-600 font-medium flex items-center gap-2 group transition-colors"
               >
                 See More
-                <svg 
-                  className="w-4 h-4 group-hover:translate-x-1 transition-transform" 
-                  fill="none" 
-                  stroke="currentColor" 
+                <svg
+                  className="w-4 h-4 group-hover:translate-x-1 transition-transform"
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
                 </svg>
               </button>
             </div>
@@ -253,20 +256,16 @@ const HomePage = (): JSX.Element => {
                     />
                   </div>
                   <div className="p-4">
-                    <Text 
-                      variant="body" 
-                      weight="medium" 
-                      color="gray" 
-                      mb="1" 
+                    <Text
+                      variant="body"
+                      weight="medium"
+                      color="gray"
+                      mb="1"
                       className="line-clamp-1"
                     >
                       {product.name}
                     </Text>
-                    <Text 
-                      variant="body-lg" 
-                      weight="semibold" 
-                      color="primary"
-                    >
+                    <Text variant="body-lg" weight="semibold" color="primary">
                       {formatPrice(product.price)}
                     </Text>
                   </div>
@@ -278,15 +277,29 @@ const HomePage = (): JSX.Element => {
           /* Empty state for products */
           <div className="mb-12">
             <div className="flex items-center justify-between mb-6">
-              <Text variant="h2" color="gray">Recommended for You</Text>
+              <Text variant="h2" color="gray">
+                Recommended for You
+              </Text>
             </div>
             <div className="bg-gray-50 rounded-lg p-12 text-center">
               <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                <svg
+                  className="w-10 h-10 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                  />
                 </svg>
               </div>
-              <Text variant="h3" color="gray" mb="2">Products coming soon!</Text>
+              <Text variant="h3" color="gray" mb="2">
+                Products coming soon!
+              </Text>
               <Text variant="body" color="gray" className="opacity-70">
                 Hijabs and beauty products are on the way!
               </Text>
@@ -300,14 +313,10 @@ const HomePage = (): JSX.Element => {
           </div>
         )}
       </div>
-      
+
       {/* Auth Required Modal */}
-      <AuthRequired 
-        isOpen={showAuthModal}
-        onClose={closeAuthModal}
-        feature={authModalFeature}
-      />
-      
+      <AuthRequired isOpen={showAuthModal} onClose={closeAuthModal} feature={authModalFeature} />
+
       {/* Personal Color Required Modal */}
       <PersonalColorRequired
         isOpen={showPersonalColorModal}

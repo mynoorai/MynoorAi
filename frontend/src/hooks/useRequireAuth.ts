@@ -16,46 +16,44 @@ interface UseRequireAuthReturn {
 export const useRequireAuth = (): UseRequireAuthReturn => {
   const { isAuthenticated } = useAuthStore();
   const { analysisResult } = useAppStore();
-  
+
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showPersonalColorModal, setShowPersonalColorModal] = useState(false);
   const [authModalFeature, setAuthModalFeature] = useState('this feature');
   const [personalColorModalFeature, setPersonalColorModalFeature] = useState('this feature');
 
-  const checkAuth = useCallback((feature: string = 'this feature'): boolean => {
-    // DEMO MODE: Always return true (no authentication required)
-    return true;
-    
-    // Original code (disabled for demo)
-    // if (!isAuthenticated) {
-    //   setAuthModalFeature(feature);
-    //   setShowAuthModal(true);
-    //   return false;
-    // }
-    // return true;
-  }, [isAuthenticated]);
+  const checkAuth = useCallback(
+    (feature: string = 'this feature'): boolean => {
+      if (!isAuthenticated) {
+        setAuthModalFeature(feature);
+        setShowAuthModal(true);
+        return false;
+      }
+      return true;
+    },
+    [isAuthenticated],
+  );
 
-  const checkPersonalColor = useCallback((feature: string = 'this feature'): boolean => {
-    // DEMO MODE: Always return true (no personal color check required)
-    return true;
-    
-    // Original code (disabled for demo)
-    // // First check if user is authenticated
-    // if (!isAuthenticated) {
-    //   setAuthModalFeature(feature);
-    //   setShowAuthModal(true);
-    //   return false;
-    // }
-    // 
-    // // Then check if they have personal color diagnosis
-    // if (!analysisResult) {
-    //   setPersonalColorModalFeature(feature);
-    //   setShowPersonalColorModal(true);
-    //   return false;
-    // }
-    // 
-    // return true;
-  }, [isAuthenticated, analysisResult]);
+  const checkPersonalColor = useCallback(
+    (feature: string = 'this feature'): boolean => {
+      // First check if user is authenticated
+      if (!isAuthenticated) {
+        setAuthModalFeature(feature);
+        setShowAuthModal(true);
+        return false;
+      }
+
+      // Then check if they have personal color diagnosis
+      if (!analysisResult) {
+        setPersonalColorModalFeature(feature);
+        setShowPersonalColorModal(true);
+        return false;
+      }
+
+      return true;
+    },
+    [isAuthenticated, analysisResult],
+  );
 
   const closeAuthModal = useCallback(() => {
     setShowAuthModal(false);
@@ -73,6 +71,6 @@ export const useRequireAuth = (): UseRequireAuthReturn => {
     authModalFeature,
     personalColorModalFeature,
     closeAuthModal,
-    closePersonalColorModal
+    closePersonalColorModal,
   };
 };

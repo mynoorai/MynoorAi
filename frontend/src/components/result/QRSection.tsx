@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Share2, Download } from 'lucide-react';
 import { shareOrCopy } from '@/utils/helpers';
 import { generateResultCard, downloadResultCard } from '@/utils/resultCardGeneratorV3';
 import type { PersonalColorResult } from '@/types';
@@ -43,43 +42,53 @@ export const QRSection: React.FC<QRSectionProps> = ({ result, instagramId }) => 
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      padding: '32px 18px',
-      alignItems: 'center',
-      gap: '10px',
-      alignSelf: 'stretch'
-    }}>
-      <div style={{
+    <div
+      style={{
         display: 'flex',
         flexDirection: 'column',
+        padding: '32px 18px',
         alignItems: 'center',
-        width: '100%'
-      }}>
+        gap: '10px',
+        alignSelf: 'stretch',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          width: '100%',
+        }}
+      >
         {/* Title */}
-        <h3 style={{
-          color: '#000',
-          textAlign: 'center',
-          fontFamily: 'Pretendard',
-          fontSize: '18px',
-          fontStyle: 'normal',
-          fontWeight: 700,
-          lineHeight: '140%'
-        }}>
-          Scan QR Code<br />Get Your Personal Results & Product Recommendations
+        <h3
+          style={{
+            color: '#000',
+            textAlign: 'center',
+            fontFamily: 'Pretendard',
+            fontSize: '18px',
+            fontStyle: 'normal',
+            fontWeight: 700,
+            lineHeight: '140%',
+          }}
+        >
+          Scan QR Code
+          <br />
+          Get Your Personal Results & Product Recommendations
         </h3>
       </div>
 
       {/* QR Code */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: '16px',
-        marginTop: '16px',
-        marginBottom: '16px'
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '16px',
+          marginTop: '16px',
+          marginBottom: '16px',
+        }}
+      >
         {qrCodeUrl ? (
           <img
             src={qrCodeUrl}
@@ -87,16 +96,18 @@ export const QRSection: React.FC<QRSectionProps> = ({ result, instagramId }) => 
             style={{
               width: '140px',
               height: '140px',
-              imageRendering: 'pixelated'
+              imageRendering: 'pixelated',
             }}
           />
         ) : (
-          <div style={{
-            width: '140px',
-            height: '140px',
-            backgroundColor: '#f0f0f0',
-            borderRadius: '8px'
-          }} />
+          <div
+            style={{
+              width: '140px',
+              height: '140px',
+              backgroundColor: '#f0f0f0',
+              borderRadius: '8px',
+            }}
+          />
         )}
       </div>
 
@@ -122,7 +133,7 @@ export const QRSection: React.FC<QRSectionProps> = ({ result, instagramId }) => 
           fontStyle: 'normal',
           fontWeight: 700,
           lineHeight: '140%',
-          cursor: 'pointer'
+          cursor: 'pointer',
         }}
       >
         Scan Now

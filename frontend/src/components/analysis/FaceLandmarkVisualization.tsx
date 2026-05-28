@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { COLOR_COMPARISON_FLOWS } from '@/utils/constants';
 import { faceMeshService } from '@/services/faceMeshService';
 import { getTensorFlow } from '@/utils/tensorflowInit';
+import { devLog } from '@/utils/devLog';
 
 interface FaceLandmarkVisualizationProps {
   imageUrl: string;
@@ -61,18 +62,18 @@ const FaceLandmarkVisualization: React.FC<FaceLandmarkVisualizationProps> = ({
       const startTime = performance.now();
       
       try {
-        console.log('🔧 [FaceLandmark] Starting detector initialization at', new Date().toISOString());
+        devLog.log('🔧 [FaceLandmark] Starting detector initialization at', new Date().toISOString());
         
         // Use singleton FaceMesh service for better performance
-        console.log('🔧 [FaceLandmark] Initializing FaceMesh using shared service...');
+        devLog.log('🔧 [FaceLandmark] Initializing FaceMesh using shared service...');
         const initialized = await faceMeshService.initialize();
         
         if (initialized) {
           setDetectorReady(true);
           
           const totalTime = performance.now() - startTime;
-          console.log(`✅ [FaceLandmark] FaceMesh ready (using shared instance) in ${Math.round(totalTime)}ms`);
-          console.log(`📊 [Performance] Memory optimized - reusing existing FaceMesh model`);
+          devLog.log(`✅ [FaceLandmark] FaceMesh ready (using shared instance) in ${Math.round(totalTime)}ms`);
+          devLog.log(`📊 [Performance] Memory optimized - reusing existing FaceMesh model`);
           
           // Track performance for analytics
           if (typeof window !== 'undefined' && (window as any).gtag) {
@@ -105,7 +106,7 @@ const FaceLandmarkVisualization: React.FC<FaceLandmarkVisualizationProps> = ({
       }
       // Release reference to the singleton service
       faceMeshService.release();
-      console.log('✅ [FaceLandmark] Released FaceMesh service reference and cleared retries');
+      devLog.log('✅ [FaceLandmark] Released FaceMesh service reference and cleared retries');
     };
   }, []);
 
@@ -662,7 +663,7 @@ const FaceLandmarkVisualization: React.FC<FaceLandmarkVisualizationProps> = ({
         // Mark scan as complete after one cycle
         if (scanProgress >= 1 && !scanCompleteRef.current) {
           scanCompleteRef.current = true;
-          console.log('🎯 [FaceLandmark] Scan complete, triggering callback');
+          devLog.log('🎯 [FaceLandmark] Scan complete, triggering callback');
           // Trigger callback to enable continue button if provided
           if (onLandmarksDetected) {
             onLandmarksDetected([{ scanComplete: true, keypoints: [] }]);
@@ -918,12 +919,12 @@ const FaceLandmarkVisualization: React.FC<FaceLandmarkVisualizationProps> = ({
     retryCountRef.current = 0;
 
     try {
-      console.log('🔍 [Synchronized] Starting face landmark detection...');
-      console.log(`📐 Image dimensions: ${imageRef.current.width}x${imageRef.current.height}`);
+      devLog.log('🔍 [Synchronized] Starting face landmark detection...');
+      devLog.log(`📐 Image dimensions: ${imageRef.current.width}x${imageRef.current.height}`);
       
       // Use singleton service for face detection
       const faces = await faceMeshService.estimateFaces(imageRef.current);
-      console.log(`✅ [Synchronized] Detected ${faces.length} face(s)`);
+      devLog.log(`✅ [Synchronized] Detected ${faces.length} face(s)`);
 
       // Manually clean up any tensors that might have been created
       try {
@@ -935,7 +936,7 @@ const FaceLandmarkVisualization: React.FC<FaceLandmarkVisualizationProps> = ({
           const numTensorsAfterCleanup = tf.memory().numTensors;
           
           if (numTensorsBeforeCleanup > numTensorsAfterCleanup) {
-            console.log(`🧹 [Memory] Cleaned ${numTensorsBeforeCleanup - numTensorsAfterCleanup} leaked tensors in static detection`);
+            devLog.log(`🧹 [Memory] Cleaned ${numTensorsBeforeCleanup - numTensorsAfterCleanup} leaked tensors in static detection`);
           }
         }
       } catch (tfError) {
@@ -992,7 +993,7 @@ const FaceLandmarkVisualization: React.FC<FaceLandmarkVisualizationProps> = ({
       });
 
       setLandmarks(detectedFaces);
-      console.log('🎯 [Synchronized] Face landmarks ready - waiting for character sync');
+      devLog.log('🎯 [Synchronized] Face landmarks ready - waiting for character sync');
 
       if (onLandmarksDetected) {
         onLandmarksDetected(detectedFaces);
@@ -1089,7 +1090,7 @@ const FaceLandmarkVisualization: React.FC<FaceLandmarkVisualizationProps> = ({
         if (elapsed > 0 && elapsed >= scanDuration) {
           if (!scanCompleteRef.current) {
             scanCompleteRef.current = true;
-            console.log('🎯 [Animation Loop] Scan complete after', elapsed, 'ms');
+            devLog.log('🎯 [Animation Loop] Scan complete after', elapsed, 'ms');
             // Draw one final frame with scan complete
             drawLandmarks(landmarks, 'detecting');
             if (onLandmarksDetected) {
@@ -1141,7 +1142,7 @@ const FaceLandmarkVisualization: React.FC<FaceLandmarkVisualizationProps> = ({
       const targetPhase = forceAnimationPhase || getAnimationPhaseForStep(currentAnalysisStep);
       
       if (targetPhase !== animationPhase) {
-        console.log(`🎯 [Sync] Character step ${currentAnalysisStep} → Animation phase: ${targetPhase}`);
+        devLog.log(`🎯 [Sync] Character step ${currentAnalysisStep} → Animation phase: ${targetPhase}`);
         setAnimationPhase(targetPhase);
         // Reset detection flag when phase changes to allow re-detection if needed
         if (targetPhase === 'detecting') {
@@ -1154,7 +1155,7 @@ const FaceLandmarkVisualization: React.FC<FaceLandmarkVisualizationProps> = ({
           animationStartTimeRef.current = Date.now() + 500;
         } else if (targetPhase === 'depth-1' || targetPhase === 'depth-2' || targetPhase === 'depth-3') {
           // No animation for depth phases - just static display
-          console.log(`🎨 [Static Display] Showing static colors for ${targetPhase}`);
+          devLog.log(`🎨 [Static Display] Showing static colors for ${targetPhase}`);
         }
         drawLandmarks(landmarks, targetPhase);
       }

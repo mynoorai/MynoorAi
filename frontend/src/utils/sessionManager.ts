@@ -26,7 +26,7 @@ class SessionManager {
     try {
       const sessionId = localStorage.getItem(SESSION_KEY);
       const timestamp = localStorage.getItem(SESSION_TIMESTAMP_KEY);
-      
+
       if (!sessionId || !timestamp) {
         return null;
       }
@@ -42,7 +42,7 @@ class SessionManager {
 
       return {
         sessionId,
-        timestamp: parseInt(timestamp, 10)
+        timestamp: parseInt(timestamp, 10),
       };
     } catch (error) {
       secureWarn('Failed to get stored session:', error);
@@ -57,7 +57,7 @@ class SessionManager {
     try {
       localStorage.setItem(SESSION_KEY, sessionId);
       localStorage.setItem(SESSION_TIMESTAMP_KEY, Date.now().toString());
-      
+
       if (instagramId) {
         localStorage.setItem('pca_instagram_id', instagramId);
       }
@@ -93,12 +93,12 @@ class SessionManager {
     const storedSession = this.getStoredSession();
     if (storedSession) {
       secureLog('Using existing session:', storedSession.sessionId);
-      
+
       // Verify session is still valid on backend
       try {
         await SessionAPI.getSession(storedSession.sessionId);
         return storedSession.sessionId;
-      } catch (error) {
+      } catch {
         secureWarn('Stored session is invalid, creating new one');
         this.clearStoredSession();
       }
@@ -124,10 +124,10 @@ class SessionManager {
     try {
       const response = await SessionAPI.createSession(instagramId);
       const { sessionId } = response.data;
-      
+
       // Store in localStorage
       this.storeSession(sessionId, instagramId);
-      
+
       secureLog('New session created:', sessionId);
       return sessionId;
     } catch (error) {

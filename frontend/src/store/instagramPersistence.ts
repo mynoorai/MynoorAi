@@ -5,6 +5,7 @@
 
 import type { StateStorage } from 'zustand/middleware';
 import { detectInAppBrowser, inAppStorage } from '@/utils/inAppBrowserDetection';
+import { devLog } from '@/utils/devLog';
 
 /**
  * Create a storage adapter that falls back gracefully for Instagram browser
@@ -25,14 +26,14 @@ export const createInstagramSafeStorage = (): StateStorage => {
         // Try sessionStorage (more reliable in Instagram)
         const sessionValue = sessionStorage.getItem(name);
         if (sessionValue !== null) {
-          console.log('📦 [Storage] Retrieved from sessionStorage:', name);
+          devLog.log('📦 [Storage] Retrieved from sessionStorage:', name);
           return sessionValue;
         }
         
         // Fall back to in-app storage (memory/session hybrid)
         const inAppValue = await inAppStorage.getItem(name);
         if (inAppValue !== null) {
-          console.log('📦 [Storage] Retrieved from in-app fallback:', name);
+          devLog.log('📦 [Storage] Retrieved from in-app fallback:', name);
         }
         return inAppValue;
       } catch (error) {
@@ -48,7 +49,7 @@ export const createInstagramSafeStorage = (): StateStorage => {
         if (isInstagramIOS) {
           try {
             sessionStorage.setItem(name, value);
-            console.log('💾 [Storage] Saved to sessionStorage (Instagram):', name);
+            devLog.log('💾 [Storage] Saved to sessionStorage (Instagram):', name);
             // Also save to in-app storage as backup
             await inAppStorage.setItem(name, value);
           } catch (e) {
@@ -61,7 +62,7 @@ export const createInstagramSafeStorage = (): StateStorage => {
           // Also save to sessionStorage for consistency
           try {
             sessionStorage.setItem(name, value);
-          } catch {}
+          } catch { /* noop */ }
         }
       } catch (error) {
         console.warn('⚠️ [Storage] Failed to set item:', name, error);
@@ -73,10 +74,10 @@ export const createInstagramSafeStorage = (): StateStorage => {
     removeItem: async (name: string): Promise<void> => {
       try {
         // Remove from all storages
-        try { localStorage.removeItem(name); } catch {}
-        try { sessionStorage.removeItem(name); } catch {}
+        try { localStorage.removeItem(name); } catch { /* noop */ }
+        try { sessionStorage.removeItem(name); } catch { /* noop */ }
         await inAppStorage.removeItem(name);
-        console.log('🗑️ [Storage] Removed item:', name);
+        devLog.log('🗑️ [Storage] Removed item:', name);
       } catch (error) {
         console.warn('⚠️ [Storage] Failed to remove item:', name, error);
       }
@@ -96,7 +97,7 @@ export const sessionRecoveryHelpers = {
       const hash = `#session=${sessionId}`;
       if (window.location.hash !== hash) {
         window.history.replaceState(null, '', hash);
-        console.log('🔗 [Session] Saved to URL hash:', sessionId);
+        devLog.log('🔗 [Session] Saved to URL hash:', sessionId);
       }
     }
   },
@@ -108,7 +109,7 @@ export const sessionRecoveryHelpers = {
     const hash = window.location.hash;
     const match = hash.match(/#session=([^&]+)/);
     if (match && match[1]) {
-      console.log('🔗 [Session] Recovered from URL hash:', match[1]);
+      devLog.log('🔗 [Session] Recovered from URL hash:', match[1]);
       return match[1];
     }
     return null;
@@ -123,18 +124,18 @@ export const sessionRecoveryHelpers = {
     // Save to all storage types
     try {
       localStorage.setItem(key, sessionId);
-    } catch {}
+    } catch { /* noop */ }
     
     try {
       sessionStorage.setItem(key, sessionId);
-    } catch {}
+    } catch { /* noop */ }
     
     await inAppStorage.setItem(key, sessionId);
     
     // Also save to URL hash
     sessionRecoveryHelpers.saveToUrlHash(sessionId);
     
-    console.log('💾 [Session] Backed up everywhere:', sessionId);
+    devLog.log('💾 [Session] Backed up everywhere:', sessionId);
   },
   
   /**
@@ -151,24 +152,24 @@ export const sessionRecoveryHelpers = {
     try {
       const sessionValue = sessionStorage.getItem(key);
       if (sessionValue) {
-        console.log('🔍 [Session] Recovered from sessionStorage:', sessionValue);
+        devLog.log('🔍 [Session] Recovered from sessionStorage:', sessionValue);
         return sessionValue;
       }
-    } catch {}
+    } catch { /* noop */ }
     
     // Try localStorage
     try {
       const localValue = localStorage.getItem(key);
       if (localValue) {
-        console.log('🔍 [Session] Recovered from localStorage:', localValue);
+        devLog.log('🔍 [Session] Recovered from localStorage:', localValue);
         return localValue;
       }
-    } catch {}
+    } catch { /* noop */ }
     
     // Try in-app storage
     const inAppValue = await inAppStorage.getItem(key);
     if (inAppValue) {
-      console.log('🔍 [Session] Recovered from in-app storage:', inAppValue);
+      devLog.log('🔍 [Session] Recovered from in-app storage:', inAppValue);
       return inAppValue;
     }
     

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { faceMeshService } from '@/services/faceMeshService';
+import { devLog } from '@/utils/devLog';
 
 interface LiveFaceDetectionProps {
   videoRef: React.RefObject<HTMLVideoElement>;
@@ -43,15 +44,15 @@ const LiveFaceDetection: React.FC<LiveFaceDetectionProps> = ({
   useEffect(() => {
     const initializeDetector = async () => {
       try {
-        console.log('🔧 [Live Detection] Initializing face detector for AR effects...');
-        console.log('🔧 [Live Detection] isActive:', isActive);
+        devLog.log('🔧 [Live Detection] Initializing face detector for AR effects...');
+        devLog.log('🔧 [Live Detection] isActive:', isActive);
         
         // Use singleton FaceMesh service for better performance
         const initialized = await faceMeshService.initialize();
         
         if (initialized) {
           setDetectorReady(true);
-          console.log('✅ [Live Detection] Real-time face detector ready (using shared instance)');
+          devLog.log('✅ [Live Detection] Real-time face detector ready (using shared instance)');
         } else {
           console.warn('⚠️ [Live Detection] Failed to initialize face detector');
         }
@@ -67,7 +68,7 @@ const LiveFaceDetection: React.FC<LiveFaceDetectionProps> = ({
     }
 
     return () => {
-      console.log('🧹 [Cleanup] Disposing LiveFaceDetection resources...');
+      devLog.log('🧹 [Cleanup] Disposing LiveFaceDetection resources...');
       
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -76,7 +77,7 @@ const LiveFaceDetection: React.FC<LiveFaceDetectionProps> = ({
       
       // Release reference to the singleton service
       faceMeshService.release();
-      console.log('✅ [Cleanup] Released FaceMesh service reference');
+      devLog.log('✅ [Cleanup] Released FaceMesh service reference');
     };
   }, [isActive]);
 
@@ -186,7 +187,7 @@ const LiveFaceDetection: React.FC<LiveFaceDetectionProps> = ({
   // Real-time detection loop with memory management
   const detectFaces = useCallback(async () => {
     if (!detectorReady || !videoRef.current || !isActive) {
-      console.log('⏭️ [Detection Loop] Skipping - conditions not met:', {
+      devLog.log('⏭️ [Detection Loop] Skipping - conditions not met:', {
         hasDetector: detectorReady,
         hasVideo: !!videoRef.current,
         isActive
@@ -207,7 +208,7 @@ const LiveFaceDetection: React.FC<LiveFaceDetectionProps> = ({
     try {
       // Log detection attempt periodically
       if (animationPhase % 30 === 0) {
-        console.log('🔍 [Detection Loop] Running face detection...');
+        devLog.log('🔍 [Detection Loop] Running face detection...');
       }
       
       // Detect faces using singleton service (MediaPipe optimized for this)
@@ -234,7 +235,7 @@ const LiveFaceDetection: React.FC<LiveFaceDetectionProps> = ({
       setAnimationPhase(prev => prev + 1);
       
       if (animationPhase % 30 === 0 && detectedFaces.length > 0) {
-        console.log(`✨ [Detection Loop] Drawing ${detectedFaces.length} face(s)`);
+        devLog.log(`✨ [Detection Loop] Drawing ${detectedFaces.length} face(s)`);
       }
 
     } catch (error) {
@@ -252,25 +253,25 @@ const LiveFaceDetection: React.FC<LiveFaceDetectionProps> = ({
 
   // Start/stop detection when detector becomes available
   useEffect(() => {
-    console.log('🔄 [LiveFaceDetection] Detection state changed:', {
+    devLog.log('🔄 [LiveFaceDetection] Detection state changed:', {
       isActive,
       hasDetector: detectorReady,
       hasVideoRef: !!videoRef.current
     });
     
     if (isActive && detectorReady && videoRef.current) {
-      console.log('▶️ [LiveFaceDetection] Starting face detection loop');
+      devLog.log('▶️ [LiveFaceDetection] Starting face detection loop');
       setIsDetecting(true);
       
       // Start the detection loop
       const startDetection = async () => {
-        console.log('🚀 [LiveFaceDetection] Initiating first detection frame');
+        devLog.log('🚀 [LiveFaceDetection] Initiating first detection frame');
         await detectFaces();
       };
       
       startDetection();
     } else {
-      console.log('⏸️ [LiveFaceDetection] Stopping face detection');
+      devLog.log('⏸️ [LiveFaceDetection] Stopping face detection');
       setIsDetecting(false);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);

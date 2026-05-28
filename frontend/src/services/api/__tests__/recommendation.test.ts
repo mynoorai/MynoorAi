@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { RecommendationAPI } from '../recommendation';
 import { server } from '@/mocks/server';
 import { http, HttpResponse } from 'msw';
+import { useAppStore } from '@/store';
 import type { RecommendationRequest } from '../recommendation';
 import type { PersonalColorResult } from '@/types';
 
@@ -11,31 +12,42 @@ describe('RecommendationAPI', () => {
     personal_color_en: 'autumn',
     tone: 'Warm Tone',
     tone_en: 'warm',
-    confidence: 0.92
+    confidence: 0.92,
   };
 
   const mockRecommendationData: RecommendationRequest = {
-    instagramId: 'test_user',
+    sessionId: 'test_session_id',
     personalColorResult: mockPersonalColorResult,
     preferences: {
       style: ['casual'],
       priceRange: 'mid',
       material: ['cotton'],
       occasion: ['daily'],
-      additionalNotes: ''
-    }
+      additionalNotes: '',
+    },
   };
+
+  beforeEach(() => {
+    // Ensure store has a sessionId so RecommendationAPI does not throw
+    useAppStore.setState({ sessionId: 'test_session_id' });
+  });
 
   describe('submitRecommendation', () => {
     it('should successfully submit recommendation', async () => {
       server.use(
-        http.post('/api/recommendations', async () => {
+        http.post('http://localhost:5001/api/recommendations', async () => {
+          const id = 'rec_' + Date.now();
           return HttpResponse.json({
             success: true,
             message: 'Recommendation request submitted successfully.',
-            recommendationId: 'rec_' + Date.now()
+            data: {
+              recommendationId: id,
+              id,
+              status: 'pending',
+              createdAt: new Date().toISOString(),
+            },
           });
-        })
+        }),
       );
 
       const result = await RecommendationAPI.submitRecommendation(mockRecommendationData);
@@ -44,71 +56,63 @@ describe('RecommendationAPI', () => {
       expect(result.success).toBe(true);
       expect(result.message).toBeTruthy();
       expect(result.recommendationId).toMatch(/^rec_/);
+      expect(result.data?.recommendationId).toMatch(/^rec_/);
     });
 
-    it('should handle validation errors', async () => {
+    it('should propagate validation errors', async () => {
       server.use(
-        http.post('/api/recommendations', () => {
+        http.post('http://localhost:5001/api/recommendations', () => {
           return HttpResponse.json(
             {
               success: false,
-              message: 'Required information is missing.'
+              message: 'Required information is missing.',
             },
-            { status: 400 }
+            { status: 400 },
           );
-        })
+        }),
       );
 
-      const incompleteData = {
-        ...mockRecommendationData,
-        instagramId: ''
-      };
-
-      const result = await RecommendationAPI.submitRecommendation(incompleteData);
-      expect(result.success).toBe(true);
+      await expect(
+        RecommendationAPI.submitRecommendation(mockRecommendationData),
+      ).rejects.toBeDefined();
     });
 
-    it('should handle server errors gracefully', async () => {
+    it('should propagate server errors', async () => {
       server.use(
-        http.post('/api/recommendations', () => {
-          return HttpResponse.json(
-            { message: 'Server error' },
-            { status: 500 }
-          );
-        })
+        http.post('http://localhost:5001/api/recommendations', () => {
+          return HttpResponse.json({ message: 'Server error' }, { status: 500 });
+        }),
       );
 
-      const result = await RecommendationAPI.submitRecommendation(mockRecommendationData);
-      
-      expect(result.success).toBe(true);
-      expect(result.recommendationId).toMatch(/^rec_/);
+      await expect(
+        RecommendationAPI.submitRecommendation(mockRecommendationData),
+      ).rejects.toBeDefined();
     });
 
-    it('should handle network errors', async () => {
+    it('should propagate network errors', async () => {
       server.use(
-        http.post('/api/recommendations', () => {
+        http.post('http://localhost:5001/api/recommendations', () => {
           return HttpResponse.error();
-        })
+        }),
       );
 
-      const result = await RecommendationAPI.submitRecommendation(mockRecommendationData);
-      
-      expect(result.success).toBe(true);
-      expect(result.message).toBeTruthy();
+      await expect(
+        RecommendationAPI.submitRecommendation(mockRecommendationData),
+      ).rejects.toBeDefined();
     });
   });
 
   describe('getRecommendationStatus', () => {
     it('should get recommendation status', async () => {
       const recommendationId = 'rec_123456';
-      
+
       server.use(
-        http.get(`/api/recommendations/${recommendationId}/status`, () => {
+        http.get(`http://localhost:5001/api/recommendations/${recommendationId}/status`, () => {
           return HttpResponse.json({
             status: 'completed',
-            updatedAt: '2024-01-01T12:00:00Z'
+            updatedAt: '2024-01-01T12:00:00Z',
           });
-        })
+        }),
       );
 
       const result = await RecommendationAPI.getRecommendationStatus(recommendationId);
@@ -120,18 +124,15 @@ describe('RecommendationAPI', () => {
 
     it('should handle status check errors', async () => {
       const recommendationId = 'rec_invalid';
-      
+
       server.use(
-        http.get(`/api/recommendations/${recommendationId}/status`, () => {
-          return HttpResponse.json(
-            { message: 'Not found' },
-            { status: 404 }
-          );
-        })
+        http.get(`http://localhost:5001/api/recommendations/${recommendationId}/status`, () => {
+          return HttpResponse.json({ message: 'Not found' }, { status: 404 });
+        }),
       );
 
       const result = await RecommendationAPI.getRecommendationStatus(recommendationId);
-      
+
       expect(result.status).toBe('pending');
       expect(result.updatedAt).toBeTruthy();
     });

@@ -10,7 +10,7 @@ export async function ensureValidSession(): Promise<string> {
   const store = useAppStore.getState();
   const currentSessionId = store.sessionId;
   const instagramId = store.instagramId;
-  
+
   if (!currentSessionId) {
     // No session at all, create one
     secureLog('[SessionHelper] No session found, creating new session...');
@@ -18,12 +18,12 @@ export async function ensureValidSession(): Promise<string> {
     store.setSessionData(response.data.sessionId, response.data.instagramId);
     return response.data.sessionId;
   }
-  
+
   try {
     // Try to verify the session exists
     await SessionAPI.getSession(currentSessionId);
     return currentSessionId;
-  } catch (error) {
+  } catch {
     // Session doesn't exist (probably backend restarted), create a new one
     secureWarn('[SessionHelper] Session verification failed, creating new session...');
     const response = await SessionAPI.createSession(instagramId || undefined);
@@ -36,8 +36,8 @@ export async function ensureValidSession(): Promise<string> {
  * Updates session with automatic recovery if session is lost
  */
 export async function updateSessionWithRecovery(
-  sessionId: string, 
-  updateData: Parameters<typeof SessionAPI.updateSession>[1]
+  sessionId: string,
+  updateData: Parameters<typeof SessionAPI.updateSession>[1],
 ): Promise<void> {
   try {
     await SessionAPI.updateSession(sessionId, updateData);

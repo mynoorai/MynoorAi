@@ -22,7 +22,7 @@ export const compressImage = async (
 
   // Progressive compression based on file size
   const fileSizeMB = file.size / (1024 * 1024);
-  
+
   // Adjust compression parameters based on file size
   if (fileSizeMB > 5) {
     maxWidth = 600;
@@ -37,9 +37,11 @@ export const compressImage = async (
     maxHeight = 800;
     quality = 0.7;
   }
-  
-  console.log(`Compressing image: ${file.name} (${fileSizeMB.toFixed(2)}MB) to ${maxWidth}x${maxHeight} @ ${quality} quality`);
-  
+
+  console.log(
+    `Compressing image: ${file.name} (${fileSizeMB.toFixed(2)}MB) to ${maxWidth}x${maxHeight} @ ${quality} quality`,
+  );
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -87,7 +89,9 @@ export const compressImage = async (
             });
 
             const compressedSizeMB = compressedFile.size / (1024 * 1024);
-            console.log(`Compression complete: ${fileSizeMB.toFixed(2)}MB → ${compressedSizeMB.toFixed(2)}MB (${Math.round((1 - compressedFile.size / file.size) * 100)}% reduction)`);
+            console.log(
+              `Compression complete: ${fileSizeMB.toFixed(2)}MB → ${compressedSizeMB.toFixed(2)}MB (${Math.round((1 - compressedFile.size / file.size) * 100)}% reduction)`,
+            );
 
             resolve(compressedFile);
           },
@@ -95,9 +99,9 @@ export const compressImage = async (
           quality,
         );
       };
-      img.onerror = reject;
+      img.onerror = () => reject(new Error('Failed to load image for compression'));
     };
-    reader.onerror = reject;
+    reader.onerror = () => reject(new Error('Failed to read image file'));
   });
 };
 
@@ -171,9 +175,7 @@ export const generateSessionId = (): string => {
  * @returns boolean indicating if device is mobile
  */
 export const isMobileDevice = (): boolean => {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-    navigator.userAgent,
-  );
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 };
 
 /**

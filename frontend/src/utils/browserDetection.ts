@@ -4,15 +4,17 @@
  * Enhanced with device-specific profiling and in-app browser detection
  */
 
-import { getDeviceProfile, canRunMediaPipe, getOptimalCameraConstraints } from './deviceProfile';
-import { detectInAppBrowser, getInAppBrowserSettings, getInAppCameraConstraints } from './inAppBrowserDetection';
+import { getDeviceProfile, canRunMediaPipe } from './deviceProfile';
+import { detectInAppBrowser, getInAppBrowserSettings } from './inAppBrowserDetection';
 
 /**
  * Detect if running on iOS
  */
 export function isIOS(): boolean {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPad Pro detection
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  ); // iPad Pro detection
 }
 
 /**
@@ -71,13 +73,13 @@ export function isWebGLStable(): boolean {
  * Detect if device has low memory (iOS specific)
  */
 export function isLowMemoryDevice(): boolean {
-  // @ts-ignore - navigator.deviceMemory is not in standard types
+  // @ts-expect-error - navigator.deviceMemory is not in standard types
   const deviceMemory = navigator.deviceMemory;
-  
+
   if (deviceMemory && deviceMemory < 4) {
     return true;
   }
-  
+
   // For iOS devices without deviceMemory API
   if (isIOS()) {
     const ua = navigator.userAgent;
@@ -86,7 +88,7 @@ export function isLowMemoryDevice(): boolean {
       return true;
     }
   }
-  
+
   return false;
 }
 
@@ -105,17 +107,17 @@ export interface BrowserOptimizationSettings {
 export function getBrowserOptimizationSettings(): BrowserOptimizationSettings {
   // First check if we're in an in-app browser
   const inAppInfo = detectInAppBrowser();
-  
+
   if (inAppInfo.isInAppBrowser) {
     const inAppSettings = getInAppBrowserSettings(inAppInfo);
-    
+
     console.log('📱 In-app browser detected, applying special optimizations:', {
       browser: inAppInfo.browserName,
       platform: inAppInfo.platform,
       version: inAppInfo.version,
-      limitations: inAppInfo.limitations
+      limitations: inAppInfo.limitations,
     });
-    
+
     // Convert in-app browser settings to our format
     return {
       useWebGL: inAppSettings.faceMeshBackend === 'webgl',
@@ -126,18 +128,18 @@ export function getBrowserOptimizationSettings(): BrowserOptimizationSettings {
       showCompatibilityWarning: inAppSettings.showCompatibilityWarning,
     };
   }
-  
+
   // Get device-specific profile for regular browsers
   const deviceProfile = getDeviceProfile();
   const deviceSettings = deviceProfile.recommendedSettings;
-  
+
   console.log('🎯 Device-specific optimization:', {
     device: deviceProfile.model,
     category: deviceProfile.category,
     ram: `${deviceProfile.ram}GB`,
-    settings: deviceSettings
+    settings: deviceSettings,
   });
-  
+
   const settings: BrowserOptimizationSettings = {
     useWebGL: deviceSettings.useWebGL,
     maxFaces: deviceSettings.faceMeshMaxFaces,
@@ -150,12 +152,12 @@ export function getBrowserOptimizationSettings(): BrowserOptimizationSettings {
   // iOS Safari specific requirements
   if (isIOS() && isSafari()) {
     settings.requireHTTPS = true;
-    
+
     const iosVersion = getIOSVersion();
     if (iosVersion && iosVersion < 14) {
       settings.showCompatibilityWarning = true;
     }
-    
+
     // Extra memory optimization for older iPhones
     if (deviceProfile.ram <= 2) {
       settings.enableMemoryOptimization = true;
@@ -176,7 +178,7 @@ export function getBrowserOptimizationSettings(): BrowserOptimizationSettings {
     settings.useWebGL = false;
     console.warn('⚠️ WebGL not stable, falling back to CPU');
   }
-  
+
   // Check if device can run MediaPipe at all
   if (!canRunMediaPipe(deviceProfile)) {
     console.warn('⚠️ Device may struggle with MediaPipe:', deviceProfile.model);
@@ -192,26 +194,30 @@ export function getBrowserOptimizationSettings(): BrowserOptimizationSettings {
 export function installCanvasToBlobPolyfill(): void {
   if (!HTMLCanvasElement.prototype.toBlob) {
     Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
-      value: function(callback: (blob: Blob | null) => void, type = 'image/png', quality?: number) {
+      value: function (
+        callback: (blob: Blob | null) => void,
+        type = 'image/png',
+        quality?: number,
+      ) {
         const canvas = this as HTMLCanvasElement;
         setTimeout(() => {
           const dataURL = canvas.toDataURL(type, quality);
           const data = dataURL.split(',')[1];
           const mimeString = dataURL.split(',')[0].split(':')[1].split(';')[0];
-          
+
           // Convert base64 to binary
           const byteString = atob(data);
           const arrayBuffer = new ArrayBuffer(byteString.length);
           const uint8Array = new Uint8Array(arrayBuffer);
-          
+
           for (let i = 0; i < byteString.length; i++) {
             uint8Array[i] = byteString.charCodeAt(i);
           }
-          
+
           const blob = new Blob([uint8Array], { type: mimeString });
           callback(blob);
         });
-      }
+      },
     });
   }
 }

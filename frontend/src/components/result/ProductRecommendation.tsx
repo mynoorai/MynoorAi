@@ -28,7 +28,9 @@ const mapPersonalColor = (personalColorEn: string): PersonalColorType | null => 
   return null;
 };
 
-export const ProductRecommendation: React.FC<ProductRecommendationProps> = ({ personalColorEn }) => {
+export const ProductRecommendation: React.FC<ProductRecommendationProps> = ({
+  personalColorEn,
+}) => {
   const [recommendations, setRecommendations] = React.useState<Record<ProductCategory, Product[]>>({
     hijab: [],
     blush: [],
@@ -45,21 +47,23 @@ export const ProductRecommendation: React.FC<ProductRecommendationProps> = ({ pe
           (['hijab', 'blush', 'lip', 'lens'] as ProductCategory[]).map(async (cat) => {
             let items: Product[] = [];
             try {
-              const res = await ProductAPI.getProducts(pcType ? { category: cat, personalColor: pcType } : { category: cat });
+              const res = await ProductAPI.getProducts(
+                pcType ? { category: cat, personalColor: pcType } : { category: cat },
+              );
               items = res.data || [];
-            } catch (e) {
+            } catch {
               items = [];
             }
             if (items.length === 0) {
               try {
                 const resAll = await ProductAPI.getProducts({ category: cat });
                 items = resAll.data || [];
-              } catch (e) {
+              } catch {
                 items = [];
               }
             }
             return [cat, items] as const;
-          })
+          }),
         );
         const next: Record<ProductCategory, Product[]> = {
           hijab: [],
@@ -83,15 +87,13 @@ export const ProductRecommendation: React.FC<ProductRecommendationProps> = ({ pe
   const renderSection = (
     category: ProductCategory,
     label: string,
-    emptyMessage: string
+    emptyMessage: string,
   ): JSX.Element => {
     const items = recommendations[category] || [];
     return (
       <div className="w-full max-w-[402px] md:max-w-[600px] lg:max-w-[768px] mx-auto py-4 md:py-6 lg:py-8">
         <div className="bg-white rounded-2xl p-4 md:p-6">
-          <h3 className="text-xl font-bold text-gray-900 mb-4">
-            {label}
-          </h3>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">{label}</h3>
           {loading ? (
             <div className="flex items-center gap-2 text-gray-600 py-4">
               <Loader2 className="w-4 h-4 animate-spin text-purple-600" />

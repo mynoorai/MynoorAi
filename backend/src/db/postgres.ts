@@ -1,6 +1,19 @@
-import { Pool } from 'pg';
-import type { QueryResultRow } from 'pg';
-import type { Session, Recommendation, PersonalColorResult, UserPreferences, User, RefreshToken, Product, ProductCategory, PersonalColorType, Content, ContentCategory, ContentStatus } from '../types';
+import { Pool } from "pg";
+import type { QueryResultRow } from "pg";
+import type {
+  Session,
+  Recommendation,
+  PersonalColorResult,
+  UserPreferences,
+  User,
+  RefreshToken,
+  Product,
+  ProductCategory,
+  PersonalColorType,
+  Content,
+  ContentCategory,
+  ContentStatus,
+} from "../types";
 
 type QueryParameters = ReadonlyArray<unknown>;
 
@@ -88,39 +101,45 @@ type SSLConfig =
 // Secure SSL configuration for database connections
 const getSSLConfig = (): SSLConfig => {
   const databaseUrl = process.env.DATABASE_URL;
-  
+
   if (!databaseUrl) {
     return false; // No SSL for development without DATABASE_URL
   }
-  
+
   // Production SSL configuration
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === "production") {
     // More secure SSL configuration
-    if (databaseUrl.includes('render.com') || 
-        databaseUrl.includes('railway.app') || 
-        databaseUrl.includes('dpg-')) {  // Render internal database URLs
+    if (
+      databaseUrl.includes("render.com") ||
+      databaseUrl.includes("railway.app") ||
+      databaseUrl.includes("dpg-")
+    ) {
+      // Render internal database URLs
       // Some cloud providers require specific SSL handling
-      return { 
-        rejectUnauthorized: false // Only for specific cloud providers
+      return {
+        rejectUnauthorized: false, // Only for specific cloud providers
       };
     } else {
       // Default secure SSL configuration
       return {
         rejectUnauthorized: true,
-        require: true
+        require: true,
       };
     }
   }
-  
+
   // Development - if connecting to a remote database, use SSL
-  if (databaseUrl.includes('render.com') || 
-      databaseUrl.includes('railway.app') || 
-      databaseUrl.includes('dpg-')) {  // Render internal database URLs
-    return { 
-      rejectUnauthorized: false // Allow self-signed certificates in dev
+  if (
+    databaseUrl.includes("render.com") ||
+    databaseUrl.includes("railway.app") ||
+    databaseUrl.includes("dpg-")
+  ) {
+    // Render internal database URLs
+    return {
+      rejectUnauthorized: false, // Allow self-signed certificates in dev
     };
   }
-  
+
   return false;
 };
 
@@ -141,6 +160,7 @@ export class PostgresDatabase {
     userLastLoginAtColumn: false,
     adminActionsTable: false,
     userDiagnosisColumns: false,
+    userSavedViewedTables: false,
   };
   // Test database connection
   async testConnection(): Promise<boolean> {
@@ -148,25 +168,27 @@ export class PostgresDatabase {
       // Add connection retry logic for Render deployment
       let retries = 3;
       let lastError;
-      
+
       while (retries > 0) {
         try {
-          const result = await pool.query('SELECT NOW()');
-          console.info('Database connected at:', result.rows[0].now);
+          const result = await pool.query("SELECT NOW()");
+          console.info("Database connected at:", result.rows[0].now);
           return true;
         } catch (err) {
           lastError = err;
           retries--;
           if (retries > 0) {
-            console.log(`Database connection attempt failed, retrying... (${retries} attempts left)`);
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+            console.log(
+              `Database connection attempt failed, retrying... (${retries} attempts left)`,
+            );
+            await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds
           }
         }
       }
-      
+
       throw lastError;
     } catch (error) {
-      console.error('Database connection failed:', error);
+      console.error("Database connection failed:", error);
       return false;
     }
   }
@@ -174,7 +196,7 @@ export class PostgresDatabase {
   // Initialize database schema
   async initialize(): Promise<void> {
     try {
-      console.info('[Database] Initializing schema (IF NOT EXISTS)...');
+      console.info("[Database] Initializing schema (IF NOT EXISTS)...");
 
       // 1. Timestamp trigger function
       await pool.query(`
@@ -209,11 +231,21 @@ export class PostgresDatabase {
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         )
       `);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_instagram_id ON users(instagram_id)`);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_verification_token ON users(verification_token)`);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_reset_password_token ON users(reset_password_token)`);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)`);
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`,
+      );
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_users_instagram_id ON users(instagram_id)`,
+      );
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_users_verification_token ON users(verification_token)`,
+      );
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_users_reset_password_token ON users(reset_password_token)`,
+      );
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)`,
+      );
 
       // 3. Sessions table
       await pool.query(`
@@ -230,9 +262,15 @@ export class PostgresDatabase {
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         )
       `);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_sessions_instagram_id ON sessions(instagram_id)`);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)`);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_sessions_created_at ON sessions(created_at DESC)`);
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_sessions_instagram_id ON sessions(instagram_id)`,
+      );
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)`,
+      );
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_sessions_created_at ON sessions(created_at DESC)`,
+      );
 
       // 4. Recommendations table
       await pool.query(`
@@ -243,7 +281,8 @@ export class PostgresDatabase {
           personal_color_result JSONB,
           user_preferences JSONB,
           uploaded_image_url TEXT,
-          status VARCHAR(20) NOT NULL DEFAULT 'pending',
+          product_ids TEXT[] NOT NULL DEFAULT '{}',
+          status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
           dm_sent_at TIMESTAMP WITH TIME ZONE,
           completed_at TIMESTAMP WITH TIME ZONE,
           notes TEXT,
@@ -251,10 +290,18 @@ export class PostgresDatabase {
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         )
       `);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_recommendations_session_id ON recommendations(session_id)`);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_recommendations_instagram_id ON recommendations(instagram_id)`);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_recommendations_status ON recommendations(status)`);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_recommendations_created_at ON recommendations(created_at DESC)`);
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_recommendations_session_id ON recommendations(session_id)`,
+      );
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_recommendations_instagram_id ON recommendations(instagram_id)`,
+      );
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_recommendations_status ON recommendations(status)`,
+      );
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_recommendations_created_at ON recommendations(created_at DESC)`,
+      );
 
       // 5. Refresh tokens table
       await pool.query(`
@@ -266,9 +313,15 @@ export class PostgresDatabase {
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         )
       `);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id)`);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens(token)`);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at)`);
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id)`,
+      );
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens(token)`,
+      );
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at)`,
+      );
 
       // 6. Products table
       await pool.query(`
@@ -287,9 +340,15 @@ export class PostgresDatabase {
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         )
       `);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_products_category ON products(category)`);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_products_is_active ON products(is_active)`);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_products_created_at ON products(created_at DESC)`);
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_products_category ON products(category)`,
+      );
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_products_is_active ON products(is_active)`,
+      );
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_products_created_at ON products(created_at DESC)`,
+      );
 
       // 7. Contents table
       await pool.query(`
@@ -312,11 +371,21 @@ export class PostgresDatabase {
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         )
       `);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_contents_slug ON contents(slug)`);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_contents_category ON contents(category)`);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_contents_status ON contents(status)`);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_contents_published_at ON contents(published_at DESC)`);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_contents_view_count ON contents(view_count DESC)`);
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_contents_slug ON contents(slug)`,
+      );
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_contents_category ON contents(category)`,
+      );
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_contents_status ON contents(status)`,
+      );
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_contents_published_at ON contents(published_at DESC)`,
+      );
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_contents_view_count ON contents(view_count DESC)`,
+      );
 
       // 8. Message history table
       await pool.query(`
@@ -328,7 +397,9 @@ export class PostgresDatabase {
           sent_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
         )
       `);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_message_history_session_id ON message_history(session_id)`);
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_message_history_session_id ON message_history(session_id)`,
+      );
 
       // 9. Admin actions table
       await pool.query(`
@@ -341,15 +412,17 @@ export class PostgresDatabase {
           performed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
         )
       `);
-      await pool.query(`CREATE INDEX IF NOT EXISTS idx_admin_actions_performed_at ON admin_actions(performed_at DESC)`);
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS idx_admin_actions_performed_at ON admin_actions(performed_at DESC)`,
+      );
 
       // 10. Create triggers (drop first to avoid duplicates)
       const triggers = [
-        { name: 'update_users_updated_at', table: 'users' },
-        { name: 'update_sessions_updated_at', table: 'sessions' },
-        { name: 'update_recommendations_updated_at', table: 'recommendations' },
-        { name: 'update_products_updated_at', table: 'products' },
-        { name: 'update_contents_updated_at', table: 'contents' },
+        { name: "update_users_updated_at", table: "users" },
+        { name: "update_sessions_updated_at", table: "sessions" },
+        { name: "update_recommendations_updated_at", table: "recommendations" },
+        { name: "update_products_updated_at", table: "products" },
+        { name: "update_contents_updated_at", table: "contents" },
       ];
       for (const t of triggers) {
         await pool.query(`DROP TRIGGER IF EXISTS ${t.name} ON ${t.table}`);
@@ -359,38 +432,48 @@ export class PostgresDatabase {
         `);
       }
 
-      console.info('✅ [Database] Schema initialization complete');
+      console.info("✅ [Database] Schema initialization complete");
     } catch (error) {
-      console.error('Failed to initialize database schema:', error);
+      console.error("Failed to initialize database schema:", error);
       throw error;
     }
   }
 
   // Generic query method for token cleanup service
-  async query<Row extends QueryResultRow = RowRecord>(text: string, params: QueryParameters = []): Promise<DbQueryResult<Row>> {
+  async query<Row extends QueryResultRow = RowRecord>(
+    text: string,
+    params: QueryParameters = [],
+  ): Promise<DbQueryResult<Row>> {
     try {
       const result = await pool.query<Row>(text, [...params]);
       return {
         rows: result.rows,
-        rowCount: result.rowCount
+        rowCount: result.rowCount,
       };
     } catch (error) {
-      console.error('Database query failed:', error);
+      console.error("Database query failed:", error);
       throw error;
     }
   }
 
   // Sessions
-  async createSession(instagramId: string | null, userId?: string): Promise<Session> {
+  async createSession(
+    instagramId: string | null,
+    userId?: string,
+  ): Promise<Session> {
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    
+
     const query = `
       INSERT INTO sessions (id, instagram_id, user_id)
       VALUES ($1, $2, $3)
       RETURNING id, instagram_id, user_id, created_at
     `;
-    
-    const result = await pool.query(query, [sessionId, instagramId || null, userId || null]);
+
+    const result = await pool.query(query, [
+      sessionId,
+      instagramId || null,
+      userId || null,
+    ]);
     return {
       id: result.rows[0].id,
       instagramId: result.rows[0].instagram_id || undefined,
@@ -406,24 +489,24 @@ export class PostgresDatabase {
       FROM sessions
       WHERE id = $1
     `;
-    
+
     const result = await pool.query(query, [sessionId]);
-    
+
     if (result.rows.length === 0) {
       return undefined;
     }
-    
+
     const row = result.rows[0];
     let analysisResult: PersonalColorResult | undefined;
-    
+
     if (row.analysis_result) {
-      if (typeof row.analysis_result === 'string') {
+      if (typeof row.analysis_result === "string") {
         analysisResult = JSON.parse(row.analysis_result);
       } else {
         analysisResult = row.analysis_result as PersonalColorResult;
       }
     }
-    
+
     return {
       id: row.id,
       instagramId: row.instagram_id,
@@ -440,20 +523,20 @@ export class PostgresDatabase {
       FROM sessions
       ORDER BY created_at DESC
     `;
-    
+
     const result = await pool.query(query);
-    
-    return result.rows.map(row => {
+
+    return result.rows.map((row) => {
       let analysisResult: PersonalColorResult | undefined;
-      
+
       if (row.analysis_result) {
-        if (typeof row.analysis_result === 'string') {
+        if (typeof row.analysis_result === "string") {
           analysisResult = JSON.parse(row.analysis_result);
         } else {
           analysisResult = row.analysis_result as PersonalColorResult;
         }
       }
-      
+
       return {
         id: row.id,
         instagramId: row.instagram_id,
@@ -466,55 +549,58 @@ export class PostgresDatabase {
   }
 
   async updateSession(
-    sessionId: string, 
-    updateData: { uploadedImageUrl?: string; analysisResult?: PersonalColorResult }
+    sessionId: string,
+    updateData: {
+      uploadedImageUrl?: string;
+      analysisResult?: PersonalColorResult;
+    },
   ): Promise<Session | undefined> {
     const fields: string[] = [];
     const values: unknown[] = [];
     let paramIndex = 1;
-    
+
     if (updateData.uploadedImageUrl !== undefined) {
       fields.push(`uploaded_image_url = $${paramIndex++}`);
       values.push(updateData.uploadedImageUrl);
     }
-    
+
     if (updateData.analysisResult !== undefined) {
       fields.push(`analysis_result = $${paramIndex++}`);
       values.push(JSON.stringify(updateData.analysisResult));
     }
-    
+
     if (fields.length === 0) {
       // No fields to update, return the existing session
       return this.getSession(sessionId);
     }
-    
+
     fields.push(`updated_at = NOW()`);
     values.push(sessionId);
-    
+
     const query = `
       UPDATE sessions
-      SET ${fields.join(', ')}
+      SET ${fields.join(", ")}
       WHERE id = $${paramIndex}
       RETURNING id, instagram_id, uploaded_image_url, analysis_result, created_at, updated_at
     `;
-    
+
     const result = await pool.query(query, values);
-    
+
     if (result.rows.length === 0) {
       return undefined;
     }
-    
+
     const row = result.rows[0];
     let analysisResult: PersonalColorResult | undefined;
-    
+
     if (row.analysis_result) {
-      if (typeof row.analysis_result === 'string') {
+      if (typeof row.analysis_result === "string") {
         analysisResult = JSON.parse(row.analysis_result);
       } else {
         analysisResult = row.analysis_result as PersonalColorResult;
       }
     }
-    
+
     return {
       id: row.id,
       instagramId: row.instagram_id,
@@ -527,18 +613,18 @@ export class PostgresDatabase {
 
   async deleteSession(sessionId: string): Promise<boolean> {
     const client = await pool.connect();
-    
+
     try {
       // Start transaction
-      await client.query('BEGIN');
-      
+      await client.query("BEGIN");
+
       // First, delete all recommendations associated with this session
       const deleteRecommendationsQuery = `
         DELETE FROM recommendations
         WHERE session_id = $1
       `;
       await client.query(deleteRecommendationsQuery, [sessionId]);
-      
+
       // Then, delete the session itself
       const deleteSessionQuery = `
         DELETE FROM sessions
@@ -546,16 +632,16 @@ export class PostgresDatabase {
         RETURNING id
       `;
       const result = await client.query(deleteSessionQuery, [sessionId]);
-      
+
       // Commit transaction
-      await client.query('COMMIT');
-      
+      await client.query("COMMIT");
+
       // Return true if a session was deleted, false otherwise
       return (result.rowCount ?? 0) > 0;
     } catch (error) {
       // Rollback transaction on error
-      await client.query('ROLLBACK');
-      console.error('Error deleting session:', error);
+      await client.query("ROLLBACK");
+      console.error("Error deleting session:", error);
       throw error;
     } finally {
       // Release the client back to the pool
@@ -565,17 +651,17 @@ export class PostgresDatabase {
 
   // Recommendations
   async createRecommendation(
-    data: Omit<Recommendation, 'id' | 'createdAt' | 'updatedAt'>
+    data: Omit<Recommendation, "id" | "createdAt" | "updatedAt">,
   ): Promise<Recommendation> {
     const recommendationId = `rec_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    
+
     const query = `
-      INSERT INTO recommendations 
-      (id, session_id, instagram_id, personal_color_result, user_preferences, uploaded_image_url, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO recommendations
+      (id, session_id, instagram_id, personal_color_result, user_preferences, uploaded_image_url, product_ids, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `;
-    
+
     const result = await pool.query(query, [
       recommendationId,
       data.sessionId,
@@ -583,44 +669,72 @@ export class PostgresDatabase {
       JSON.stringify(data.personalColorResult),
       JSON.stringify(data.userPreferences),
       data.uploadedImageUrl || null,
-      data.status || 'pending',
+      data.productIds ?? [],
+      data.status || "pending",
     ]);
-    
+
     return this.mapRecommendationRow(result.rows[0]);
   }
 
-  async getRecommendation(recommendationId: string): Promise<Recommendation | undefined> {
+  async getRecommendation(
+    recommendationId: string,
+  ): Promise<Recommendation | undefined> {
     const query = `
       SELECT * FROM recommendations
       WHERE id = $1
     `;
-    
+
     const result = await pool.query(query, [recommendationId]);
-    
+
     if (result.rows.length === 0) {
       return undefined;
     }
-    
+
     return this.mapRecommendationRow(result.rows[0]);
   }
 
   async updateRecommendationStatus(
     recommendationId: string,
-    status: Recommendation['status']
+    status: Recommendation["status"],
   ): Promise<Recommendation | undefined> {
+    // When the status flips to `completed`, stamp completed_at exactly once.
     const query = `
       UPDATE recommendations
-      SET status = $1
+      SET status = $1,
+          completed_at = CASE
+            WHEN $1 = 'completed' AND completed_at IS NULL THEN CURRENT_TIMESTAMP
+            ELSE completed_at
+          END
       WHERE id = $2
       RETURNING *
     `;
-    
+
     const result = await pool.query(query, [status, recommendationId]);
-    
+
     if (result.rows.length === 0) {
       return undefined;
     }
-    
+
+    return this.mapRecommendationRow(result.rows[0]);
+  }
+
+  async updateRecommendationProductIds(
+    recommendationId: string,
+    productIds: string[],
+  ): Promise<Recommendation | undefined> {
+    const query = `
+      UPDATE recommendations
+      SET product_ids = $1
+      WHERE id = $2
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, [productIds, recommendationId]);
+
+    if (result.rows.length === 0) {
+      return undefined;
+    }
+
     return this.mapRecommendationRow(result.rows[0]);
   }
 
@@ -629,20 +743,22 @@ export class PostgresDatabase {
       SELECT * FROM recommendations
       ORDER BY created_at DESC
     `;
-    
+
     const result = await pool.query(query);
-    return result.rows.map(row => this.mapRecommendationRow(row));
+    return result.rows.map((row) => this.mapRecommendationRow(row));
   }
 
-  async getRecommendationsByStatus(status: Recommendation['status']): Promise<Recommendation[]> {
+  async getRecommendationsByStatus(
+    status: Recommendation["status"],
+  ): Promise<Recommendation[]> {
     const query = `
       SELECT * FROM recommendations
       WHERE status = $1
       ORDER BY created_at DESC
     `;
-    
+
     const result = await pool.query(query, [status]);
-    return result.rows.map(row => this.mapRecommendationRow(row));
+    return result.rows.map((row) => this.mapRecommendationRow(row));
   }
 
   // Helper method to map database row to Recommendation type
@@ -653,26 +769,28 @@ export class PostgresDatabase {
     personal_color_result: unknown;
     user_preferences: unknown;
     uploaded_image_url?: string;
+    product_ids?: string[] | null;
     status: string;
+    completed_at?: Date | null;
     created_at: Date;
     updated_at: Date;
   }): Recommendation {
     // Parse JSON data if it's returned as a string
     let personalColorResult: PersonalColorResult;
     let userPreferences: UserPreferences;
-    
-    if (typeof row.personal_color_result === 'string') {
+
+    if (typeof row.personal_color_result === "string") {
       personalColorResult = JSON.parse(row.personal_color_result);
     } else {
       personalColorResult = row.personal_color_result as PersonalColorResult;
     }
-    
-    if (typeof row.user_preferences === 'string') {
+
+    if (typeof row.user_preferences === "string") {
       userPreferences = JSON.parse(row.user_preferences);
     } else {
       userPreferences = row.user_preferences as UserPreferences;
     }
-    
+
     return {
       id: row.id,
       sessionId: row.session_id,
@@ -680,7 +798,9 @@ export class PostgresDatabase {
       personalColorResult,
       userPreferences,
       uploadedImageUrl: row.uploaded_image_url,
-      status: row.status as Recommendation['status'],
+      productIds: Array.isArray(row.product_ids) ? row.product_ids : [],
+      status: row.status as Recommendation["status"],
+      completedAt: row.completed_at ?? undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -692,27 +812,30 @@ export class PostgresDatabase {
   }
 
   // Admin Features - Journey Status and Priority Management
-  async updateJourneyStatus(sessionId: string, status: string): Promise<boolean> {
+  async updateJourneyStatus(
+    sessionId: string,
+    status: string,
+  ): Promise<boolean> {
     const query = `
       UPDATE sessions 
       SET journey_status = $1, updated_at = NOW()
       WHERE id = $2
     `;
-    
+
     try {
       const result = await pool.query(query, [status, sessionId]);
-      
+
       // If status is 'offer_sent', update offer_sent_at
-      if (status === 'offer_sent' && result.rowCount && result.rowCount > 0) {
+      if (status === "offer_sent" && result.rowCount && result.rowCount > 0) {
         await pool.query(
-          'UPDATE sessions SET offer_sent_at = NOW() WHERE id = $1',
-          [sessionId]
+          "UPDATE sessions SET offer_sent_at = NOW() WHERE id = $1",
+          [sessionId],
         );
       }
-      
+
       return result.rowCount !== null && result.rowCount > 0;
     } catch (error) {
-      console.error('Failed to update journey status:', error);
+      console.error("Failed to update journey status:", error);
       return false;
     }
   }
@@ -723,31 +846,31 @@ export class PostgresDatabase {
       SET priority = $1, updated_at = NOW()
       WHERE id = $2
     `;
-    
+
     try {
       const result = await pool.query(query, [priority, sessionId]);
       return result.rowCount !== null && result.rowCount > 0;
     } catch (error) {
-      console.error('Failed to update priority:', error);
+      console.error("Failed to update priority:", error);
       return false;
     }
   }
 
   async recordMessageSent(
-    sessionId: string, 
-    messageType: string, 
-    sentBy: string = 'admin'
+    sessionId: string,
+    messageType: string,
+    sentBy: string = "admin",
   ): Promise<boolean> {
     const query = `
       INSERT INTO message_history (session_id, message_type, sent_by)
       VALUES ($1, $2, $3)
     `;
-    
+
     try {
       await pool.query(query, [sessionId, messageType, sentBy]);
       return true;
     } catch (error) {
-      console.error('Failed to record message sent:', error);
+      console.error("Failed to record message sent:", error);
       return false;
     }
   }
@@ -756,19 +879,24 @@ export class PostgresDatabase {
     sessionId: string | null,
     actionType: string,
     actionDetails: unknown,
-    performedBy: string = 'admin'
+    performedBy: string = "admin",
   ): Promise<boolean> {
     await this.ensureAdminActionsTable();
     const query = `
       INSERT INTO admin_actions (session_id, action_type, action_details, performed_by)
       VALUES ($1, $2, $3, $4)
     `;
-    
+
     try {
-      await pool.query(query, [sessionId, actionType, JSON.stringify(actionDetails), performedBy]);
+      await pool.query(query, [
+        sessionId,
+        actionType,
+        JSON.stringify(actionDetails),
+        performedBy,
+      ]);
       return true;
     } catch (error) {
-      console.error('Failed to add admin action:', error);
+      console.error("Failed to add admin action:", error);
       return false;
     }
   }
@@ -776,17 +904,17 @@ export class PostgresDatabase {
   async getAdminActions(sessionId?: string): Promise<RowRecord[]> {
     const query = `
       SELECT * FROM admin_actions
-      ${sessionId ? 'WHERE session_id = $1' : ''}
+      ${sessionId ? "WHERE session_id = $1" : ""}
       ORDER BY performed_at DESC
     `;
-    
+
     try {
       const result = sessionId
         ? await pool.query(query, [sessionId])
         : await pool.query(query);
       return result.rows;
     } catch (error) {
-      console.error('Failed to get admin actions:', error);
+      console.error("Failed to get admin actions:", error);
       return [];
     }
   }
@@ -797,12 +925,12 @@ export class PostgresDatabase {
       WHERE session_id = $1
       ORDER BY sent_at DESC
     `;
-    
+
     try {
       const result = await pool.query(query, [sessionId]);
       return result.rows;
     } catch (error) {
-      console.error('Failed to get message history:', error);
+      console.error("Failed to get message history:", error);
       return [];
     }
   }
@@ -832,18 +960,20 @@ export class PostgresDatabase {
       LEFT JOIN recommendations r ON s.id = r.session_id
       ORDER BY s.updated_at DESC
     `;
-    
+
     try {
       const result = await pool.query(query);
       return result.rows;
     } catch (error) {
-      console.error('Failed to get unified user view:', error);
+      console.error("Failed to get unified user view:", error);
       return [];
     }
   }
 
   // User methods
-  async createUser(data: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
+  async createUser(
+    data: Omit<User, "id" | "createdAt" | "updatedAt">,
+  ): Promise<User> {
     // Ensure required user columns exist in case the database predates recent schema
     await this.ensureVerificationTokenExpiryColumn();
     await this.ensureUserRoleAndLastLoginColumns();
@@ -864,7 +994,7 @@ export class PostgresDatabase {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
     `;
-    
+
     const result = await pool.query(query, [
       data.email,
       data.passwordHash,
@@ -873,10 +1003,10 @@ export class PostgresDatabase {
       data.emailVerified || false,
       data.verificationToken || null,
       data.verificationTokenExpires || null,
-      data.role || 'user',
-      data.lastLoginAt || null
+      data.role || "user",
+      data.lastLoginAt || null,
     ]);
-    
+
     return this.mapUserRow(result.rows[0]);
   }
 
@@ -884,11 +1014,11 @@ export class PostgresDatabase {
     await this.ensureUserDiagnosisColumns();
     const query = `SELECT * FROM users WHERE id = $1`;
     const result = await pool.query(query, [userId]);
-    
+
     if (result.rows.length === 0) {
       return undefined;
     }
-    
+
     return this.mapUserRow(result.rows[0]);
   }
 
@@ -922,12 +1052,20 @@ export class PostgresDatabase {
   }
 
   // List users with optional filters + pagination
-  async getAllUsers(filters?: { search?: string; role?: string; emailVerified?: boolean; offset?: number; limit?: number }): Promise<User[]> {
+  async getAllUsers(filters?: {
+    search?: string;
+    role?: string;
+    emailVerified?: boolean;
+    offset?: number;
+    limit?: number;
+  }): Promise<User[]> {
     const where: string[] = [];
     const values: unknown[] = [];
     let idx = 1;
     if (filters?.search) {
-      where.push(`(LOWER(email) LIKE $${idx} OR LOWER(full_name) LIKE $${idx})`);
+      where.push(
+        `(LOWER(email) LIKE $${idx} OR LOWER(full_name) LIKE $${idx})`,
+      );
       values.push(`%${filters.search.toLowerCase()}%`);
       idx++;
     }
@@ -936,14 +1074,18 @@ export class PostgresDatabase {
       values.push(filters.role);
       idx++;
     }
-    if (typeof filters?.emailVerified === 'boolean') {
+    if (typeof filters?.emailVerified === "boolean") {
       where.push(`email_verified = $${idx}`);
       values.push(filters.emailVerified);
       idx++;
     }
-    const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
-    const limit = typeof filters?.limit === 'number' ? Math.max(1, Math.min(100, filters!.limit)) : 20;
-    const offset = typeof filters?.offset === 'number' ? Math.max(0, filters!.offset) : 0;
+    const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+    const limit =
+      typeof filters?.limit === "number"
+        ? Math.max(1, Math.min(100, filters!.limit))
+        : 20;
+    const offset =
+      typeof filters?.offset === "number" ? Math.max(0, filters!.offset) : 0;
     const query = `
       SELECT * FROM users
       ${whereClause}
@@ -951,10 +1093,13 @@ export class PostgresDatabase {
       LIMIT ${limit} OFFSET ${offset}
     `;
     const result = await pool.query<UserRow>(query, values);
-    return result.rows.map(row => this.mapUserRow(row));
+    return result.rows.map((row) => this.mapUserRow(row));
   }
 
-  async updateUser(userId: string, updates: Partial<User>): Promise<User | undefined> {
+  async updateUser(
+    userId: string,
+    updates: Partial<User>,
+  ): Promise<User | undefined> {
     await this.ensureVerificationTokenExpiryColumn();
     await this.ensureUserRoleAndLastLoginColumns();
     await this.ensureUserDiagnosisColumns();
@@ -1027,24 +1172,24 @@ export class PostgresDatabase {
     values.push(userId);
     const query = `
       UPDATE users 
-      SET ${updateFields.join(', ')}, updated_at = NOW()
+      SET ${updateFields.join(", ")}, updated_at = NOW()
       WHERE id = $${valueIndex}
       RETURNING *
     `;
 
     const result = await pool.query(query, values);
-    
+
     if (result.rows.length === 0) {
       return undefined;
     }
-    
+
     return this.mapUserRow(result.rows[0]);
   }
 
   // Saved/View history methods
   private async ensureUserSavedViewedTables(): Promise<void> {
     // Create supporting tables once per process
-    if ((this.schemaChecks as any).userSavedViewedTables) return;
+    if (this.schemaChecks.userSavedViewedTables) return;
     try {
       await pool.query(`
         CREATE TABLE IF NOT EXISTS user_saved_products (
@@ -1066,20 +1211,29 @@ export class PostgresDatabase {
         CREATE INDEX IF NOT EXISTS idx_user_viewed_products_user ON user_viewed_products(user_id);
       `);
 
-      (this.schemaChecks as any).userSavedViewedTables = true;
+      this.schemaChecks.userSavedViewedTables = true;
     } catch (e) {
-      console.error('Failed to ensure user saved/viewed tables:', e);
+      console.error("Failed to ensure user saved/viewed tables:", e);
     }
   }
 
-  async getUserSavedProducts(userId: string): Promise<Array<{ productId: string; savedAt: Date }>> {
+  async getUserSavedProducts(
+    userId: string,
+  ): Promise<Array<{ productId: string; savedAt: Date }>> {
     await this.ensureUserSavedViewedTables();
     const q = `SELECT product_id, saved_at FROM user_saved_products WHERE user_id = $1 ORDER BY saved_at DESC`;
     const result = await pool.query(q, [userId]);
-    return result.rows.map(r => ({ productId: r.product_id as string, savedAt: r.saved_at as Date }));
+    return result.rows.map((r) => ({
+      productId: r.product_id as string,
+      savedAt: r.saved_at as Date,
+    }));
   }
 
-  async addUserSavedProduct(userId: string, productId: string, savedAt?: Date): Promise<boolean> {
+  async addUserSavedProduct(
+    userId: string,
+    productId: string,
+    savedAt?: Date,
+  ): Promise<boolean> {
     await this.ensureUserSavedViewedTables();
     const q = `INSERT INTO user_saved_products (user_id, product_id, saved_at) VALUES ($1, $2, $3)
                ON CONFLICT (user_id, product_id) DO UPDATE SET saved_at = EXCLUDED.saved_at`;
@@ -1087,14 +1241,20 @@ export class PostgresDatabase {
     return res.rowCount !== null && res.rowCount > 0;
   }
 
-  async removeUserSavedProduct(userId: string, productId: string): Promise<boolean> {
+  async removeUserSavedProduct(
+    userId: string,
+    productId: string,
+  ): Promise<boolean> {
     await this.ensureUserSavedViewedTables();
     const q = `DELETE FROM user_saved_products WHERE user_id = $1 AND product_id = $2`;
     const res = await pool.query(q, [userId, productId]);
     return res.rowCount !== null && res.rowCount > 0;
   }
 
-  async mergeUserSavedProducts(userId: string, items: Array<{ productId: string; savedAt?: Date }>): Promise<number> {
+  async mergeUserSavedProducts(
+    userId: string,
+    items: Array<{ productId: string; savedAt?: Date }>,
+  ): Promise<number> {
     await this.ensureUserSavedViewedTables();
     if (!items || items.length === 0) return 0;
     const values: unknown[] = [];
@@ -1105,28 +1265,44 @@ export class PostgresDatabase {
       tuples.push(`($${i++}, $${i++}, $${i++})`);
     }
     const q = `INSERT INTO user_saved_products (user_id, product_id, saved_at)
-               VALUES ${tuples.join(', ')}
+               VALUES ${tuples.join(", ")}
                ON CONFLICT (user_id, product_id) DO UPDATE SET saved_at = GREATEST(user_saved_products.saved_at, EXCLUDED.saved_at)`;
     const res = await pool.query(q, values);
     return res.rowCount ?? 0;
   }
 
-  async getUserViewedProducts(userId: string): Promise<Array<{ productId: string; viewedAt: Date }>> {
+  async getUserViewedProducts(
+    userId: string,
+  ): Promise<Array<{ productId: string; viewedAt: Date }>> {
     await this.ensureUserSavedViewedTables();
     const q = `SELECT product_id, viewed_at FROM user_viewed_products WHERE user_id = $1 ORDER BY viewed_at DESC LIMIT 100`;
     const result = await pool.query(q, [userId]);
-    return result.rows.map(r => ({ productId: r.product_id as string, viewedAt: r.viewed_at as Date }));
+    return result.rows.map((r) => ({
+      productId: r.product_id as string,
+      viewedAt: r.viewed_at as Date,
+    }));
   }
 
-  async upsertUserViewedProduct(userId: string, productId: string, viewedAt?: Date): Promise<boolean> {
+  async upsertUserViewedProduct(
+    userId: string,
+    productId: string,
+    viewedAt?: Date,
+  ): Promise<boolean> {
     await this.ensureUserSavedViewedTables();
     const q = `INSERT INTO user_viewed_products (user_id, product_id, viewed_at) VALUES ($1, $2, $3)
                ON CONFLICT (user_id, product_id) DO UPDATE SET viewed_at = EXCLUDED.viewed_at`;
-    const res = await pool.query(q, [userId, productId, viewedAt ?? new Date()]);
+    const res = await pool.query(q, [
+      userId,
+      productId,
+      viewedAt ?? new Date(),
+    ]);
     return res.rowCount !== null && res.rowCount > 0;
   }
 
-  async mergeUserViewedProducts(userId: string, items: Array<{ productId: string; viewedAt?: Date }>): Promise<number> {
+  async mergeUserViewedProducts(
+    userId: string,
+    items: Array<{ productId: string; viewedAt?: Date }>,
+  ): Promise<number> {
     await this.ensureUserSavedViewedTables();
     if (!items || items.length === 0) return 0;
     const values: unknown[] = [];
@@ -1137,14 +1313,16 @@ export class PostgresDatabase {
       tuples.push(`($${i++}, $${i++}, $${i++})`);
     }
     const q = `INSERT INTO user_viewed_products (user_id, product_id, viewed_at)
-               VALUES ${tuples.join(', ')}
+               VALUES ${tuples.join(", ")}
                ON CONFLICT (user_id, product_id) DO UPDATE SET viewed_at = GREATEST(user_viewed_products.viewed_at, EXCLUDED.viewed_at)`;
     const res = await pool.query(q, values);
     return res.rowCount ?? 0;
   }
 
   // Refresh token methods
-  async createRefreshToken(data: Omit<RefreshToken, 'id' | 'createdAt'>): Promise<RefreshToken> {
+  async createRefreshToken(
+    data: Omit<RefreshToken, "id" | "createdAt">,
+  ): Promise<RefreshToken> {
     await this.ensureRefreshTokenIdDefault();
 
     const query = `
@@ -1152,19 +1330,19 @@ export class PostgresDatabase {
       VALUES ($1, $2, $3)
       RETURNING *
     `;
-    
+
     const result = await pool.query(query, [
       data.userId,
       data.token,
-      data.expiresAt
+      data.expiresAt,
     ]);
-    
+
     return {
       id: result.rows[0].id,
       userId: result.rows[0].user_id,
       token: result.rows[0].token,
       expiresAt: result.rows[0].expires_at,
-      createdAt: result.rows[0].created_at
+      createdAt: result.rows[0].created_at,
     };
   }
 
@@ -1173,19 +1351,19 @@ export class PostgresDatabase {
       SELECT * FROM refresh_tokens 
       WHERE token = $1 AND expires_at > NOW()
     `;
-    
+
     const result = await pool.query(query, [token]);
-    
+
     if (result.rows.length === 0) {
       return undefined;
     }
-    
+
     return {
       id: result.rows[0].id,
       userId: result.rows[0].user_id,
       token: result.rows[0].token,
       expiresAt: result.rows[0].expires_at,
-      createdAt: result.rows[0].created_at
+      createdAt: result.rows[0].created_at,
     };
   }
 
@@ -1212,7 +1390,7 @@ export class PostgresDatabase {
         AND email_verified = FALSE
         AND (verification_token_expires IS NULL OR verification_token_expires > CURRENT_TIMESTAMP)
     `;
-    
+
     try {
       const result = await pool.query(query, [token]);
       if (result.rows.length === 0) {
@@ -1220,7 +1398,7 @@ export class PostgresDatabase {
       }
       return this.mapUserRow(result.rows[0]);
     } catch (error) {
-      console.error('Failed to get user by verification token:', error);
+      console.error("Failed to get user by verification token:", error);
       return undefined;
     }
   }
@@ -1236,7 +1414,7 @@ export class PostgresDatabase {
       WHERE reset_password_token = $1 
       AND reset_password_expires > CURRENT_TIMESTAMP
     `;
-    
+
     try {
       const result = await pool.query(query, [token]);
       if (result.rows.length === 0) {
@@ -1244,7 +1422,7 @@ export class PostgresDatabase {
       }
       return this.mapUserRow(result.rows[0]);
     } catch (error) {
-      console.error('Failed to get user by reset token:', error);
+      console.error("Failed to get user by reset token:", error);
       return undefined;
     }
   }
@@ -1256,29 +1434,32 @@ export class PostgresDatabase {
       SET email_verified = TRUE, verification_token = NULL, updated_at = CURRENT_TIMESTAMP
       WHERE id = $1
     `;
-    
+
     try {
       const result = await pool.query(query, [userId]);
       return result.rowCount !== null && result.rowCount > 0;
     } catch (error) {
-      console.error('Failed to verify user email:', error);
+      console.error("Failed to verify user email:", error);
       return false;
     }
   }
 
   // Reset user password
-  async resetUserPassword(userId: string, newPasswordHash: string): Promise<boolean> {
+  async resetUserPassword(
+    userId: string,
+    newPasswordHash: string,
+  ): Promise<boolean> {
     const query = `
       UPDATE users 
       SET password_hash = $1, reset_password_token = NULL, reset_password_expires = NULL, updated_at = CURRENT_TIMESTAMP
       WHERE id = $2
     `;
-    
+
     try {
       const result = await pool.query(query, [newPasswordHash, userId]);
       return result.rowCount !== null && result.rowCount > 0;
     } catch (error) {
-      console.error('Failed to reset user password:', error);
+      console.error("Failed to reset user password:", error);
       return false;
     }
   }
@@ -1290,14 +1471,14 @@ export class PostgresDatabase {
       SET reset_password_token = NULL, reset_password_expires = NULL, updated_at = CURRENT_TIMESTAMP
       WHERE reset_password_expires < CURRENT_TIMESTAMP
     `;
-    
+
     try {
       const result = await pool.query(query);
       if (result.rowCount && result.rowCount > 0) {
         console.info(`Cleaned up ${result.rowCount} expired reset tokens`);
       }
     } catch (error) {
-      console.error('Failed to cleanup expired reset tokens:', error);
+      console.error("Failed to cleanup expired reset tokens:", error);
     }
   }
 
@@ -1306,9 +1487,12 @@ export class PostgresDatabase {
     // Decode personal_color_result if present
     let personalColorResult: PersonalColorResult | undefined = undefined;
     try {
-      const raw = (row as any).personal_color_result;
+      const raw = row.personal_color_result;
       if (raw) {
-        personalColorResult = typeof raw === 'string' ? JSON.parse(raw) : (raw as PersonalColorResult);
+        personalColorResult =
+          typeof raw === "string"
+            ? JSON.parse(raw)
+            : (raw as PersonalColorResult);
       }
     } catch {
       personalColorResult = undefined;
@@ -1317,21 +1501,21 @@ export class PostgresDatabase {
     return {
       id: row.id,
       email: row.email,
-      passwordHash: row.password_hash ?? '',
-      fullName: row.full_name ?? '',
+      passwordHash: row.password_hash ?? "",
+      fullName: row.full_name ?? "",
       instagramId: row.instagram_id ?? undefined,
       emailVerified: row.email_verified,
       verificationToken: row.verification_token ?? undefined,
       verificationTokenExpires: row.verification_token_expires ?? undefined,
       resetPasswordToken: row.reset_password_token ?? undefined,
       resetPasswordExpires: row.reset_password_expires ?? undefined,
-      role: (row.role as User['role']) ?? 'user',
+      role: (row.role as User["role"]) ?? "user",
       lastLoginAt: row.last_login_at ?? undefined,
-      hasPersonalColorDiagnosis: (row as any).has_personal_color_diagnosis ?? undefined,
+      hasPersonalColorDiagnosis: row.has_personal_color_diagnosis ?? undefined,
       personalColorResult,
-      diagnosedAt: (row as any).diagnosed_at ?? undefined,
+      diagnosedAt: row.diagnosed_at ?? undefined,
       createdAt: row.created_at,
-      updatedAt: row.updated_at ?? undefined
+      updatedAt: row.updated_at ?? undefined,
     };
   }
 
@@ -1343,11 +1527,13 @@ export class PostgresDatabase {
         `SELECT EXISTS (
            SELECT 1 FROM information_schema.columns
            WHERE table_name = 'users' AND column_name = 'has_personal_color_diagnosis'
-         ) AS exists`
+         ) AS exists`,
       );
       const has = check.rows[0]?.exists === true;
       if (!has) {
-        console.warn('⚠️ [Database] Adding personal color diagnosis columns to users table');
+        console.warn(
+          "⚠️ [Database] Adding personal color diagnosis columns to users table",
+        );
         await pool.query(`
           ALTER TABLE users
           ADD COLUMN IF NOT EXISTS has_personal_color_diagnosis BOOLEAN DEFAULT FALSE,
@@ -1361,14 +1547,16 @@ export class PostgresDatabase {
       }
       this.schemaChecks.userDiagnosisColumns = true;
     } catch (e) {
-      console.error('Failed to ensure user diagnosis columns:', e);
+      console.error("Failed to ensure user diagnosis columns:", e);
     }
   }
 
   // Product methods
-  async createProduct(data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): Promise<Product> {
+  async createProduct(
+    data: Omit<Product, "id" | "createdAt" | "updatedAt">,
+  ): Promise<Product> {
     const productId = `prod_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    
+
     // First, try to get column information
     try {
       const columnQuery = `
@@ -1378,12 +1566,15 @@ export class PostgresDatabase {
         ORDER BY ordinal_position
       `;
       const columns = await pool.query(columnQuery);
-      console.log('[PostgreSQL] Products table columns:', columns.rows.map(r => r.column_name));
+      console.log(
+        "[PostgreSQL] Products table columns:",
+        columns.rows.map((r) => r.column_name),
+      );
     } catch (e) {
-      console.error('[PostgreSQL] Failed to get column info:', e);
+      console.error("[PostgreSQL] Failed to get column info:", e);
     }
-    
-    // Use correct column names from our schema (see init-fixed.sql)
+
+    // Use correct column names from our schema (see init.sql)
     const query = `
       INSERT INTO products (
         id, name, category, price, thumbnail_url, detail_image_urls,
@@ -1392,7 +1583,7 @@ export class PostgresDatabase {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     `;
-    
+
     try {
       const result = await pool.query(query, [
         productId,
@@ -1400,17 +1591,19 @@ export class PostgresDatabase {
         data.category,
         data.price,
         data.thumbnailUrl,
-        data.detailImageUrls || [],  // Ensure array
-        data.personalColors || [],   // Ensure array
-        data.description || '',      // Ensure string
-        data.shopeeLink || '',       // Ensure string
-        data.isActive !== undefined ? data.isActive : true
+        data.detailImageUrls || [], // Ensure array
+        data.personalColors || [], // Ensure array
+        data.description || "", // Ensure string
+        data.shopeeLink || "", // Ensure string
+        data.isActive !== undefined ? data.isActive : true,
       ]);
-      
+
       return this.mapProductRow(result.rows[0]);
     } catch (error: unknown) {
-      const dbError = (error instanceof Error ? error : new Error('Unknown database error')) as DatabaseError;
-      console.error('[PostgreSQL] Product creation failed:', {
+      const dbError = (
+        error instanceof Error ? error : new Error("Unknown database error")
+      ) as DatabaseError;
+      console.error("[PostgreSQL] Product creation failed:", {
         error: dbError.message,
         detail: dbError.detail,
         hint: dbError.hint,
@@ -1418,34 +1611,38 @@ export class PostgresDatabase {
         constraint: dbError.constraint,
         table: dbError.table,
         column: dbError.column,
-        data
+        data,
       });
       throw dbError;
     }
   }
 
   async getProduct(productId: string): Promise<Product | undefined> {
-    const query = 'SELECT * FROM products WHERE id = $1';
+    const query = "SELECT * FROM products WHERE id = $1";
     const result = await pool.query(query, [productId]);
     return result.rows[0] ? this.mapProductRow(result.rows[0]) : undefined;
   }
 
-  async updateProduct(productId: string, updates: Partial<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Product | undefined> {
+  async updateProduct(
+    productId: string,
+    updates: Partial<Omit<Product, "id" | "createdAt" | "updatedAt">>,
+  ): Promise<Product | undefined> {
     const fields: string[] = [];
     const values: unknown[] = [];
     let paramIndex = 1;
 
     // Map our field names to actual database column names
     const fieldMapping: Record<string, string> = {
-      thumbnailUrl: 'thumbnail_url',
-      detailImageUrls: 'detail_image_urls',
-      shopeeLink: 'shopee_link',
-      isActive: 'is_active'
+      thumbnailUrl: "thumbnail_url",
+      detailImageUrls: "detail_image_urls",
+      shopeeLink: "shopee_link",
+      isActive: "is_active",
     };
-    
+
     Object.entries(updates).forEach(([key, value]) => {
       // Use custom mapping if exists, otherwise convert to snake_case
-      const dbKey = fieldMapping[key] || key.replace(/([A-Z])/g, '_$1').toLowerCase();
+      const dbKey =
+        fieldMapping[key] || key.replace(/([A-Z])/g, "_$1").toLowerCase();
       fields.push(`${dbKey} = $${paramIndex}`);
       values.push(value);
       paramIndex++;
@@ -1456,7 +1653,7 @@ export class PostgresDatabase {
     values.push(productId);
     const query = `
       UPDATE products 
-      SET ${fields.join(', ')}, updated_at = NOW()
+      SET ${fields.join(", ")}, updated_at = NOW()
       WHERE id = $${paramIndex}
       RETURNING *
     `;
@@ -1466,48 +1663,69 @@ export class PostgresDatabase {
   }
 
   async deleteProduct(productId: string): Promise<boolean> {
-    const query = 'DELETE FROM products WHERE id = $1';
+    const query = "DELETE FROM products WHERE id = $1";
     const result = await pool.query(query, [productId]);
     return result.rowCount !== null && result.rowCount > 0;
   }
 
   async deleteAllProducts(): Promise<void> {
-    await pool.query('DELETE FROM products');
+    await pool.query("DELETE FROM products");
   }
 
   async getAllProducts(): Promise<Product[]> {
-    const query = 'SELECT * FROM products ORDER BY created_at DESC';
+    const query = "SELECT * FROM products ORDER BY created_at DESC";
     const result = await pool.query(query);
-    return result.rows.map(row => this.mapProductRow(row));
+    return result.rows.map((row) => this.mapProductRow(row));
   }
 
   async getProductsByCategory(category: ProductCategory): Promise<Product[]> {
-    const query = 'SELECT * FROM products WHERE category = $1 ORDER BY created_at DESC';
+    const query =
+      "SELECT * FROM products WHERE category = $1 ORDER BY created_at DESC";
     const result = await pool.query(query, [category]);
-    return result.rows.map(row => this.mapProductRow(row));
+    return result.rows.map((row) => this.mapProductRow(row));
   }
 
-  async getProductsByPersonalColor(personalColor: PersonalColorType): Promise<Product[]> {
-    const query = 'SELECT * FROM products WHERE $1 = ANY(personal_colors) ORDER BY created_at DESC';
+  async getProductsByPersonalColor(
+    personalColor: PersonalColorType,
+  ): Promise<Product[]> {
+    const query =
+      "SELECT * FROM products WHERE $1 = ANY(personal_colors) ORDER BY created_at DESC";
     const result = await pool.query(query, [personalColor]);
-    return result.rows.map(row => this.mapProductRow(row));
+    return result.rows.map((row) => this.mapProductRow(row));
   }
 
-  async getProductsByCategoryAndPersonalColor(category: ProductCategory, personalColor: PersonalColorType): Promise<Product[]> {
-    const query = 'SELECT * FROM products WHERE category = $1 AND $2 = ANY(personal_colors) ORDER BY created_at DESC';
+  async getProductsByCategoryAndPersonalColor(
+    category: ProductCategory,
+    personalColor: PersonalColorType,
+  ): Promise<Product[]> {
+    const query =
+      "SELECT * FROM products WHERE category = $1 AND $2 = ANY(personal_colors) ORDER BY created_at DESC";
     const result = await pool.query(query, [category, personalColor]);
-    return result.rows.map(row => this.mapProductRow(row));
+    return result.rows.map((row) => this.mapProductRow(row));
+  }
+
+  async getProductsByIds(ids: string[]): Promise<Product[]> {
+    if (ids.length === 0) return [];
+    const query =
+      "SELECT * FROM products WHERE id = ANY($1::text[]) ORDER BY created_at DESC";
+    const result = await pool.query(query, [ids]);
+    return result.rows.map((row) => this.mapProductRow(row));
   }
 
   private mapProductRow(row: ProductRow): Product {
-    const thumbnailUrl = row.image_url ?? row.thumbnail_url ?? '';
-    const detailImagesRaw = row.additional_images ?? row.detail_image_urls ?? [];
+    const thumbnailUrl = row.image_url ?? row.thumbnail_url ?? "";
+    const detailImagesRaw =
+      row.additional_images ?? row.detail_image_urls ?? [];
     const detailImageUrls = Array.isArray(detailImagesRaw)
-      ? detailImagesRaw.filter((image): image is string => typeof image === 'string')
+      ? detailImagesRaw.filter(
+          (image): image is string => typeof image === "string",
+        )
       : [];
     const personalColorsRaw = row.personal_colors ?? [];
     const personalColors = Array.isArray(personalColorsRaw)
-      ? (personalColorsRaw.filter((color): color is PersonalColorType => typeof color === 'string') as PersonalColorType[])
+      ? (personalColorsRaw.filter(
+          (color): color is PersonalColorType => typeof color === "string",
+        ) as PersonalColorType[])
       : [];
 
     return {
@@ -1519,15 +1737,17 @@ export class PostgresDatabase {
       detailImageUrls,
       personalColors,
       description: row.description ?? undefined,
-      shopeeLink: row.product_link ?? row.shopee_link ?? '',
-      isActive: (row.is_available ?? row.is_active) ?? true,
+      shopeeLink: row.product_link ?? row.shopee_link ?? "",
+      isActive: row.is_available ?? row.is_active ?? true,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     };
   }
 
   // Content methods
-  async createContent(data: Omit<Content, 'id' | 'createdAt' | 'updatedAt' | 'viewCount'>): Promise<Content> {
+  async createContent(
+    data: Omit<Content, "id" | "createdAt" | "updatedAt" | "viewCount">,
+  ): Promise<Content> {
     const contentId = `content_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const query = `
       INSERT INTO contents (
@@ -1537,7 +1757,7 @@ export class PostgresDatabase {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *
     `;
-    
+
     const result = await pool.query(query, [
       contentId,
       data.title,
@@ -1549,57 +1769,62 @@ export class PostgresDatabase {
       data.category,
       data.tags,
       data.status,
-      data.publishedAt || (data.status === 'published' ? new Date() : null),
+      data.publishedAt || (data.status === "published" ? new Date() : null),
       data.metaDescription,
-      data.metaKeywords
+      data.metaKeywords,
     ]);
-    
+
     return this.mapContentRow(result.rows[0]);
   }
 
+  // Pure SELECT — REST GET must be idempotent. View tracking is recorded by
+  // explicit POST /:idOrSlug/view via incrementContentView.
   async getContent(contentId: string): Promise<Content | undefined> {
-    // Increment view count and return
-    const query = `
-      UPDATE contents 
-      SET view_count = view_count + 1, updated_at = NOW()
-      WHERE id = $1
-      RETURNING *
-    `;
-    const result = await pool.query(query, [contentId]);
+    const result = await pool.query("SELECT * FROM contents WHERE id = $1", [
+      contentId,
+    ]);
     return result.rows[0] ? this.mapContentRow(result.rows[0]) : undefined;
   }
 
-  // Admin-safe fetch without mutating view counts
+  // Admin-safe fetch without mutating view counts (kept for API symmetry).
   async getContentForAdmin(contentId: string): Promise<Content | undefined> {
-    const result = await pool.query('SELECT * FROM contents WHERE id = $1', [contentId]);
-    return result.rows[0] ? this.mapContentRow(result.rows[0]) : undefined;
+    return this.getContent(contentId);
   }
 
   async getContentBySlug(slug: string): Promise<Content | undefined> {
-    // Increment view count and return
-    const query = `
-      UPDATE contents 
-      SET view_count = view_count + 1, updated_at = NOW()
-      WHERE slug = $1
-      RETURNING *
-    `;
-    const result = await pool.query(query, [slug]);
+    const result = await pool.query("SELECT * FROM contents WHERE slug = $1", [
+      slug,
+    ]);
     return result.rows[0] ? this.mapContentRow(result.rows[0]) : undefined;
   }
 
-  // Admin-safe slug fetch without mutating view counts
+  // Admin-safe slug fetch without mutating view counts.
   async getContentBySlugForAdmin(slug: string): Promise<Content | undefined> {
-    const result = await pool.query('SELECT * FROM contents WHERE slug = $1', [slug]);
-    return result.rows[0] ? this.mapContentRow(result.rows[0]) : undefined;
+    return this.getContentBySlug(slug);
   }
 
-  async updateContent(contentId: string, updates: Partial<Omit<Content, 'id' | 'createdAt' | 'updatedAt' | 'viewCount'>>): Promise<Content | undefined> {
+  async incrementContentView(idOrSlug: string): Promise<boolean> {
+    const query = `
+      UPDATE contents
+      SET view_count = view_count + 1, updated_at = NOW()
+      WHERE id = $1 OR slug = $1
+    `;
+    const result = await pool.query(query, [idOrSlug]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async updateContent(
+    contentId: string,
+    updates: Partial<
+      Omit<Content, "id" | "createdAt" | "updatedAt" | "viewCount">
+    >,
+  ): Promise<Content | undefined> {
     const fields: string[] = [];
     const values: unknown[] = [];
     let paramIndex = 1;
 
     Object.entries(updates).forEach(([key, value]) => {
-      const dbKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+      const dbKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
       fields.push(`${dbKey} = $${paramIndex}`);
       values.push(value);
       paramIndex++;
@@ -1608,14 +1833,14 @@ export class PostgresDatabase {
     if (fields.length === 0) return this.getContent(contentId);
 
     // Handle published_at update
-    if (updates.status === 'published') {
+    if (updates.status === "published") {
       fields.push(`published_at = COALESCE(published_at, NOW())`);
     }
 
     values.push(contentId);
     const query = `
       UPDATE contents 
-      SET ${fields.join(', ')}, updated_at = NOW()
+      SET ${fields.join(", ")}, updated_at = NOW()
       WHERE id = $${paramIndex}
       RETURNING *
     `;
@@ -1625,13 +1850,19 @@ export class PostgresDatabase {
   }
 
   async deleteContent(contentId: string): Promise<boolean> {
-    const query = 'DELETE FROM contents WHERE id = $1';
+    const query = "DELETE FROM contents WHERE id = $1";
     const result = await pool.query(query, [contentId]);
     return result.rowCount !== null && result.rowCount > 0;
   }
 
-  async getAllContents(filters?: { category?: ContentCategory; status?: ContentStatus }): Promise<Content[]> {
-    let query = 'SELECT * FROM contents';
+  async getAllContents(filters?: {
+    category?: ContentCategory;
+    status?: ContentStatus;
+    orderBy?: "created_at_desc" | "published_at_desc" | "view_count_desc";
+    limit?: number;
+    offset?: number;
+  }): Promise<Content[]> {
+    let query = "SELECT * FROM contents";
     const conditions: string[] = [];
     const values: unknown[] = [];
     let paramIndex = 1;
@@ -1649,16 +1880,67 @@ export class PostgresDatabase {
     }
 
     if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ');
+      query += " WHERE " + conditions.join(" AND ");
     }
 
-    query += ' ORDER BY created_at DESC';
+    // Whitelist of orderBy → SQL clause to prevent injection.
+    const orderByClauses: Record<string, string> = {
+      created_at_desc: "ORDER BY created_at DESC",
+      published_at_desc:
+        "ORDER BY COALESCE(published_at, created_at) DESC, created_at DESC",
+      view_count_desc: "ORDER BY view_count DESC, created_at DESC",
+    };
+    const orderBy = filters?.orderBy ?? "created_at_desc";
+    query += " " + (orderByClauses[orderBy] ?? orderByClauses.created_at_desc);
+
+    if (filters?.limit !== undefined && filters.limit > 0) {
+      query += ` LIMIT $${paramIndex}`;
+      values.push(filters.limit);
+      paramIndex++;
+    }
+    if (filters?.offset !== undefined && filters.offset > 0) {
+      query += ` OFFSET $${paramIndex}`;
+      values.push(filters.offset);
+      paramIndex++;
+    }
 
     const result = await pool.query(query, values);
-    return result.rows.map(row => this.mapContentRow(row));
+    return result.rows.map((row) => this.mapContentRow(row));
   }
 
-  async updateContentStatus(contentId: string, status: ContentStatus): Promise<Content | undefined> {
+  async countContents(filters?: {
+    category?: ContentCategory;
+    status?: ContentStatus;
+  }): Promise<number> {
+    let query = "SELECT COUNT(*)::int AS count FROM contents";
+    const conditions: string[] = [];
+    const values: unknown[] = [];
+    let paramIndex = 1;
+
+    if (filters?.category) {
+      conditions.push(`category = $${paramIndex}`);
+      values.push(filters.category);
+      paramIndex++;
+    }
+
+    if (filters?.status) {
+      conditions.push(`status = $${paramIndex}`);
+      values.push(filters.status);
+      paramIndex++;
+    }
+
+    if (conditions.length > 0) {
+      query += " WHERE " + conditions.join(" AND ");
+    }
+
+    const result = await pool.query(query, values);
+    return result.rows[0]?.count ?? 0;
+  }
+
+  async updateContentStatus(
+    contentId: string,
+    status: ContentStatus,
+  ): Promise<Content | undefined> {
     const query = `
       UPDATE contents 
       SET status = $1,
@@ -1680,7 +1962,7 @@ export class PostgresDatabase {
       title: row.title,
       subtitle: row.subtitle ?? undefined,
       slug: row.slug,
-      thumbnailUrl: row.thumbnail_url ?? '',
+      thumbnailUrl: row.thumbnail_url ?? "",
       content: row.content,
       excerpt: row.excerpt ?? undefined,
       category: row.category,
@@ -1691,18 +1973,18 @@ export class PostgresDatabase {
       metaKeywords: row.meta_keywords ?? undefined,
       viewCount: row.view_count ?? 0,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     };
   }
 
   // Clear all data (for testing)
   async clearAllData(): Promise<void> {
-    await pool.query('DELETE FROM refresh_tokens');
-    await pool.query('DELETE FROM recommendations');
-    await pool.query('DELETE FROM sessions');
-    await pool.query('DELETE FROM users');
-    await pool.query('DELETE FROM products');
-    await pool.query('DELETE FROM contents');
+    await pool.query("DELETE FROM refresh_tokens");
+    await pool.query("DELETE FROM recommendations");
+    await pool.query("DELETE FROM sessions");
+    await pool.query("DELETE FROM users");
+    await pool.query("DELETE FROM products");
+    await pool.query("DELETE FROM contents");
   }
 
   private async ensureVerificationTokenExpiryColumn(): Promise<void> {
@@ -1716,13 +1998,15 @@ export class PostgresDatabase {
         FROM information_schema.columns
         WHERE table_name = 'users'
           AND column_name = 'verification_token_expires'
-      ) AS exists`
+      ) AS exists`,
     );
 
     const hasColumn = columnCheck.rows[0]?.exists === true;
 
     if (!hasColumn) {
-      console.warn('⚠️ [Database] verification_token_expires column missing. Applying runtime migration.');
+      console.warn(
+        "⚠️ [Database] verification_token_expires column missing. Applying runtime migration.",
+      );
 
       await pool.query(`
         ALTER TABLE users
@@ -1734,7 +2018,9 @@ export class PostgresDatabase {
         ON users(verification_token_expires)
       `);
 
-      console.info('✅ [Database] verification_token_expires column added to users table');
+      console.info(
+        "✅ [Database] verification_token_expires column added to users table",
+      );
     }
 
     this.schemaChecks.verificationTokenExpiry = true;
@@ -1750,20 +2036,24 @@ export class PostgresDatabase {
        FROM information_schema.columns
        WHERE table_schema = 'public'
          AND table_name = 'refresh_tokens'
-         AND column_name = 'id'`
+         AND column_name = 'id'`,
     );
 
     const columnDefault = defaultCheck.rows[0]?.column_default ?? null;
 
-    if (!columnDefault || !columnDefault.includes('gen_random_uuid')) {
-      console.warn('⚠️ [Database] refresh_tokens.id default missing. Applying runtime migration.');
+    if (!columnDefault || !columnDefault.includes("gen_random_uuid")) {
+      console.warn(
+        "⚠️ [Database] refresh_tokens.id default missing. Applying runtime migration.",
+      );
 
       await pool.query(`
         ALTER TABLE refresh_tokens
         ALTER COLUMN id SET DEFAULT gen_random_uuid()
       `);
 
-      console.info('✅ [Database] refresh_tokens.id default set to gen_random_uuid()');
+      console.info(
+        "✅ [Database] refresh_tokens.id default set to gen_random_uuid()",
+      );
     }
 
     this.schemaChecks.refreshTokenIdDefault = true;
@@ -1779,11 +2069,13 @@ export class PostgresDatabase {
            FROM information_schema.columns
            WHERE table_name = 'users'
              AND column_name = 'role'
-         ) AS exists`
+         ) AS exists`,
       );
       const hasRole = roleCheck.rows[0]?.exists === true;
       if (!hasRole) {
-        console.warn('⚠️ [Database] users.role column missing. Applying runtime migration.');
+        console.warn(
+          "⚠️ [Database] users.role column missing. Applying runtime migration.",
+        );
         await pool.query(`
           ALTER TABLE users
           ADD COLUMN IF NOT EXISTS role VARCHAR(32) NOT NULL DEFAULT 'user'
@@ -1791,7 +2083,7 @@ export class PostgresDatabase {
         await pool.query(`
           CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)
         `);
-        console.info('✅ [Database] users.role column added');
+        console.info("✅ [Database] users.role column added");
       }
       this.schemaChecks.userRoleColumn = true;
     }
@@ -1804,16 +2096,18 @@ export class PostgresDatabase {
            FROM information_schema.columns
            WHERE table_name = 'users'
              AND column_name = 'last_login_at'
-         ) AS exists`
+         ) AS exists`,
       );
       const hasLastLogin = lastLoginCheck.rows[0]?.exists === true;
       if (!hasLastLogin) {
-        console.warn('⚠️ [Database] users.last_login_at column missing. Applying runtime migration.');
+        console.warn(
+          "⚠️ [Database] users.last_login_at column missing. Applying runtime migration.",
+        );
         await pool.query(`
           ALTER TABLE users
           ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ
         `);
-        console.info('✅ [Database] users.last_login_at column added');
+        console.info("✅ [Database] users.last_login_at column added");
       }
       this.schemaChecks.userLastLoginAtColumn = true;
     }
@@ -1831,12 +2125,14 @@ export class PostgresDatabase {
          FROM information_schema.tables
          WHERE table_schema = 'public'
            AND table_name = 'admin_actions'
-       ) AS exists`
+       ) AS exists`,
     );
 
     const exists = tableCheck.rows[0]?.exists === true;
     if (!exists) {
-      console.warn('⚠️ [Database] admin_actions table missing. Applying runtime migration.');
+      console.warn(
+        "⚠️ [Database] admin_actions table missing. Applying runtime migration.",
+      );
       await pool.query(`
         CREATE TABLE IF NOT EXISTS admin_actions (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1851,7 +2147,7 @@ export class PostgresDatabase {
         CREATE INDEX IF NOT EXISTS idx_admin_actions_performed_at
         ON admin_actions(performed_at DESC)
       `);
-      console.info('✅ [Database] admin_actions table created');
+      console.info("✅ [Database] admin_actions table created");
     }
 
     this.schemaChecks.adminActionsTable = true;

@@ -1,6 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { trackPageView, initializeScrollTracking, trackPerformance, debugGA4 } from '@/utils/analytics';
+import {
+  trackPageView,
+  initializeScrollTracking,
+  trackPerformance,
+  debugGA4,
+} from '@/utils/analytics';
 
 interface PageTrackerProps {
   children: React.ReactNode;
@@ -10,27 +15,27 @@ export const PageTracker = ({ children }: PageTrackerProps): JSX.Element => {
   let location;
   const scrollCleanupRef = useRef<(() => void) | null>(null);
   const navigationStartRef = useRef<number>(Date.now());
-  
+
   try {
     location = useLocation();
-  } catch (error) {
+  } catch {
     // If not in router context, just render children without tracking
     return <>{children}</>;
   }
 
   useEffect(() => {
     if (!location) return;
-    
+
     const navigationEnd = Date.now();
     const navigationDuration = navigationEnd - navigationStartRef.current;
-    
+
     // Track page view on route change
     const pageName = getPageName(location.pathname);
     trackPageView(location.pathname, `${pageName} | mynoor ai`);
-    
+
     // Track navigation performance
     trackPerformance('page_navigation_time', navigationDuration, location.pathname);
-    
+
     // Update document title for better tracking
     if (pageName) {
       document.title = `${pageName} | mynoor ai`;
@@ -85,7 +90,7 @@ const getPageName = (pathname: string): string => {
     '/about': 'About mynoor ai',
     '/contact': 'Contact Us',
     '/error': 'Error Page',
-    '/404': 'Page Not Found'
+    '/404': 'Page Not Found',
   };
 
   // Handle dynamic routes

@@ -14,7 +14,12 @@ echo "Initializing database tables..."
 echo "Using database: $DATABASE_URL"
 
 # Run the SQL script
-psql "$DATABASE_URL" < ../src/db/init-fixed.sql
+psql "$DATABASE_URL" < ../src/db/init.sql
+for f in ../src/db/migrations/[0-9]*.sql; do
+    [ -f "$f" ] || continue
+    echo "  applying $(basename "$f")"
+    psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"
+done
 
 if [ $? -eq 0 ]; then
     echo "✅ Database tables created successfully!"

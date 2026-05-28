@@ -47,16 +47,9 @@ export const handlers = [
     });
   }),
 
-  // AI API analyze endpoint fallback
-  http.post('http://localhost:8000/analyze', async ({ request }) => {
-    const url = new URL(request.url);
-    const debug = url.searchParams.get('debug') === 'true';
-
-    return HttpResponse.json({
-      success: true,
-      debug,
-      result: createMockPersonalColorResult(),
-    });
+  // AI API analyze endpoint fallback (production API returns flat shape)
+  http.post('http://localhost:8000/analyze', async () => {
+    return HttpResponse.json(createMockPersonalColorResult());
   }),
 
   // AI API health endpoint fallback
@@ -64,12 +57,23 @@ export const handlers = [
     return HttpResponse.json({ status: 'ok' });
   }),
 
-  // Recommendation submission fallback
+  // CSRF token fallback (apiClient request interceptor fetches this for non-GET calls)
+  http.get('http://localhost:5001/api/csrf-token', () => {
+    return HttpResponse.json({ csrfToken: 'test-csrf-token' });
+  }),
+
+  // Recommendation submission fallback (envelope shape mirrors the real API)
   http.post('http://localhost:5001/api/recommendations', async () => {
+    const id = `rec_${Date.now()}`;
     return HttpResponse.json({
       success: true,
       message: 'Mock recommendation created',
-      recommendationId: `rec_${Date.now()}`,
+      data: {
+        recommendationId: id,
+        id,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      },
     });
   }),
 

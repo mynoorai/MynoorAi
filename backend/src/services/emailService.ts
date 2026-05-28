@@ -3,10 +3,10 @@
  * Handles email verification and password reset emails
  */
 
-import nodemailer from 'nodemailer';
-import { Resend } from 'resend';
-import { config } from '../config/environment';
-import { maskEmail } from '../utils/logging';
+import nodemailer from "nodemailer";
+import { Resend } from "resend";
+import { config } from "../config/environment";
+import { maskEmail } from "../utils/logging";
 
 interface EmailOptions {
   to: string;
@@ -32,6 +32,12 @@ interface AccountReminderEmailData {
   userName: string;
 }
 
+interface RecommendationReadyEmailData {
+  userEmail: string;
+  userName: string;
+  recommendationId: string;
+}
+
 class EmailService {
   private transporter: nodemailer.Transporter | null = null;
   private resend: Resend | null = null;
@@ -39,9 +45,10 @@ class EmailService {
   private useResend: boolean;
 
   constructor() {
-    this.isEnabled = config.EMAIL_ENABLED || process.env.NODE_ENV === 'development';
+    this.isEnabled =
+      config.EMAIL_ENABLED || process.env.NODE_ENV === "development";
     this.useResend = !!process.env.RESEND_API_KEY;
-    
+
     if (this.isEnabled) {
       if (this.useResend) {
         this.initializeResend();
@@ -49,16 +56,18 @@ class EmailService {
         void this.initializeTransporter();
       }
     } else {
-      console.warn('📧 Email service is disabled - emails will be logged instead of sent');
+      console.warn(
+        "📧 Email service is disabled - emails will be logged instead of sent",
+      );
     }
   }
 
   private initializeResend(): void {
     try {
       this.resend = new Resend(process.env.RESEND_API_KEY!);
-      console.info('✅ Email service initialized with Resend');
+      console.info("✅ Email service initialized with Resend");
     } catch (error) {
-      console.error('❌ Failed to initialize Resend:', error);
+      console.error("❌ Failed to initialize Resend:", error);
       this.isEnabled = false;
     }
   }
@@ -66,11 +75,11 @@ class EmailService {
   private async initializeTransporter(): Promise<void> {
     try {
       // For development, use Ethereal test account
-      if (process.env.NODE_ENV === 'development' && !config.SMTP_HOST) {
+      if (process.env.NODE_ENV === "development" && !config.SMTP_HOST) {
         const testAccount = await nodemailer.createTestAccount();
-        
+
         this.transporter = nodemailer.createTransport({
-          host: 'smtp.ethereal.email',
+          host: "smtp.ethereal.email",
           port: 587,
           secure: false,
           auth: {
@@ -78,46 +87,50 @@ class EmailService {
             pass: testAccount.pass,
           },
         });
-        
-        console.info('✅ Email transporter initialized with Ethereal test account');
-        console.info('📧 Ethereal account:', {
+
+        console.info(
+          "✅ Email transporter initialized with Ethereal test account",
+        );
+        console.info("📧 Ethereal account:", {
           user: testAccount.user,
           pass: testAccount.pass,
-          web: 'https://ethereal.email'
+          web: "https://ethereal.email",
         });
       } else {
         // Production or custom SMTP settings
         this.transporter = nodemailer.createTransport({
-        host: config.SMTP_HOST,
-        port: config.SMTP_PORT || 587,
-        secure: config.SMTP_SECURE || false,
-        auth: {
-          user: config.SMTP_USER,
-          pass: config.SMTP_PASS,
-        },
-        tls: {
-          rejectUnauthorized: process.env.NODE_ENV === 'production'
-        },
-        connectionTimeout: 10000,
-        greetingTimeout: 5000,
-        socketTimeout: 10000,
+          host: config.SMTP_HOST,
+          port: config.SMTP_PORT || 587,
+          secure: config.SMTP_SECURE || false,
+          auth: {
+            user: config.SMTP_USER,
+            pass: config.SMTP_PASS,
+          },
+          tls: {
+            rejectUnauthorized: process.env.NODE_ENV === "production",
+          },
+          connectionTimeout: 10000,
+          greetingTimeout: 5000,
+          socketTimeout: 10000,
         });
-        
-        console.info('✅ Email transporter initialized with custom SMTP settings');
+
+        console.info(
+          "✅ Email transporter initialized with custom SMTP settings",
+        );
       }
     } catch (error) {
-      console.error('❌ Failed to initialize email transporter:', error);
+      console.error("❌ Failed to initialize email transporter:", error);
       this.isEnabled = false;
     }
   }
 
   private async sendEmail(options: EmailOptions): Promise<void> {
     if (!this.isEnabled) {
-      console.info('📧 Email would be sent (service disabled):', {
+      console.info("📧 Email would be sent (service disabled):", {
         to: maskEmail(options.to),
         subject: options.subject,
         hasHtml: !!options.html,
-        hasText: !!options.text
+        hasText: !!options.text,
       });
       return;
     }
@@ -126,7 +139,7 @@ class EmailService {
       if (this.useResend && this.resend) {
         // Use Resend API
         const result = await this.resend.emails.send({
-          from: config.EMAIL_FROM || 'PCA-HIJAB <onboarding@resend.dev>',
+          from: config.EMAIL_FROM || "PCA-HIJAB <onboarding@resend.dev>",
           to: options.to,
           subject: options.subject,
           html: options.html,
@@ -134,61 +147,66 @@ class EmailService {
         });
 
         // Resend SDK returns either { data } or { error }
-        const anyResult = result as unknown as { data?: { id?: string }; error?: { name?: string; message?: string } };
+        const anyResult = result as unknown as {
+          data?: { id?: string };
+          error?: { name?: string; message?: string };
+        };
         if (anyResult.error || !anyResult.data?.id) {
-          console.error('❌ Resend API error:', {
+          console.error("❌ Resend API error:", {
             to: maskEmail(options.to),
             subject: options.subject,
-            error: anyResult.error?.message || 'Unknown error',
+            error: anyResult.error?.message || "Unknown error",
           });
-          throw new Error(`Resend API error: ${anyResult.error?.message || 'No message'}`);
+          throw new Error(
+            `Resend API error: ${anyResult.error?.message || "No message"}`,
+          );
         }
 
-        console.info('✅ Email sent via Resend:', {
+        console.info("✅ Email sent via Resend:", {
           to: maskEmail(options.to),
           subject: options.subject,
-          id: anyResult.data.id
+          id: anyResult.data.id,
         });
       } else if (this.transporter) {
         // Use SMTP
         const mailOptions = {
           from: {
-            name: config.EMAIL_FROM_NAME || 'PCA-HIJAB',
-            address: config.EMAIL_FROM || 'noreply@pca-hijab.com'
+            name: config.EMAIL_FROM_NAME || "PCA-HIJAB",
+            address: config.EMAIL_FROM || "noreply@pca-hijab.com",
           },
           to: options.to,
           subject: options.subject,
           html: options.html,
           text: options.text,
           headers: {
-            'X-Mailer': 'PCA-HIJAB-Service',
-            'X-Priority': '3'
-          }
+            "X-Mailer": "PCA-HIJAB-Service",
+            "X-Priority": "3",
+          },
         };
 
         const result = await this.transporter.sendMail(mailOptions);
-        
-        console.info('✅ Email sent via SMTP:', {
+
+        console.info("✅ Email sent via SMTP:", {
           to: maskEmail(options.to),
           subject: options.subject,
-          messageId: result.messageId
+          messageId: result.messageId,
         });
-        
+
         // For development with Ethereal, show preview URL
-        if (process.env.NODE_ENV === 'development' && !config.SMTP_HOST) {
+        if (process.env.NODE_ENV === "development" && !config.SMTP_HOST) {
           const previewUrl = nodemailer.getTestMessageUrl(result);
           if (previewUrl) {
-            console.info('📧 Preview URL:', previewUrl);
+            console.info("📧 Preview URL:", previewUrl);
           }
         }
       }
     } catch (error) {
-      console.error('❌ Failed to send email:', {
+      console.error("❌ Failed to send email:", {
         to: maskEmail(options.to),
         subject: options.subject,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : "Unknown error",
       });
-      throw new Error('Failed to send email');
+      throw new Error("Failed to send email");
     }
   }
 
@@ -196,16 +214,22 @@ class EmailService {
    * Send email verification email
    */
   async sendVerificationEmail(data: VerificationEmailData): Promise<void> {
-    const verificationUrl = `${config.CLIENT_URL || 'https://pca-hijab.vercel.app'}/verify-email?token=${data.verificationToken}`;
-    
-    const html = this.createVerificationEmailHTML(data.userName, verificationUrl);
-    const text = this.createVerificationEmailText(data.userName, verificationUrl);
+    const verificationUrl = `${config.CLIENT_URL || "https://pca-hijab.vercel.app"}/verify-email?token=${data.verificationToken}`;
+
+    const html = this.createVerificationEmailHTML(
+      data.userName,
+      verificationUrl,
+    );
+    const text = this.createVerificationEmailText(
+      data.userName,
+      verificationUrl,
+    );
 
     await this.sendEmail({
       to: data.userEmail,
-      subject: '✅ Verify your PCA-HIJAB account',
+      subject: "✅ Verify your PCA-HIJAB account",
       html,
-      text
+      text,
     });
   }
 
@@ -213,39 +237,93 @@ class EmailService {
    * Send password reset email
    */
   async sendPasswordResetEmail(data: PasswordResetEmailData): Promise<void> {
-    const resetUrl = `${config.CLIENT_URL || 'https://pca-hijab.vercel.app'}/reset-password?token=${data.resetToken}`;
-    
+    const resetUrl = `${config.CLIENT_URL || "https://pca-hijab.vercel.app"}/reset-password?token=${data.resetToken}`;
+
     const html = this.createPasswordResetEmailHTML(data.userName, resetUrl);
     const text = this.createPasswordResetEmailText(data.userName, resetUrl);
 
     await this.sendEmail({
       to: data.userEmail,
-      subject: '🔐 Reset your PCA-HIJAB password',
+      subject: "🔐 Reset your PCA-HIJAB password",
       html,
-      text
+      text,
     });
   }
 
   /**
    * Send account reminder email with username information
    */
-  async sendAccountReminderEmail(data: AccountReminderEmailData): Promise<void> {
-    const loginUrl = `${config.CLIENT_URL || 'https://pca-hijab.vercel.app'}/login`;
+  async sendAccountReminderEmail(
+    data: AccountReminderEmailData,
+  ): Promise<void> {
+    const loginUrl = `${config.CLIENT_URL || "https://pca-hijab.vercel.app"}/login`;
 
-    const html = this.createAccountReminderEmailHTML(data.userName, data.userEmail, loginUrl);
-    const text = this.createAccountReminderEmailText(data.userName, data.userEmail, loginUrl);
+    const html = this.createAccountReminderEmailHTML(
+      data.userName,
+      data.userEmail,
+      loginUrl,
+    );
+    const text = this.createAccountReminderEmailText(
+      data.userName,
+      data.userEmail,
+      loginUrl,
+    );
 
     await this.sendEmail({
       to: data.userEmail,
-      subject: '📮 Your PCA-HIJAB sign-in email',
+      subject: "📮 Your PCA-HIJAB sign-in email",
       html,
-      text
+      text,
     });
   }
 
-  private createVerificationEmailHTML(userName: string, verificationUrl: string): string {
+  /**
+   * Notify the user that their curated recommendation is ready to view.
+   * Fired once when an admin flips recommendation status to `completed`.
+   */
+  async sendRecommendationReady(
+    data: RecommendationReadyEmailData,
+  ): Promise<void> {
+    const baseUrl = config.CLIENT_URL || "https://pca-hijab.vercel.app";
+    const recommendationUrl = `${baseUrl}/recommendations/${encodeURIComponent(data.recommendationId)}`;
+
+    const safeName = this.sanitizeForEmail(data.userName || "there");
+    const html = `<!DOCTYPE html>
+<html lang="en"><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;padding:24px;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;padding:32px;">
+    <h1 style="color:#1a1a1a;font-size:22px;margin:0 0 16px;">Your personal color recommendation is ready</h1>
+    <p style="color:#4a4a4a;line-height:1.6;">Hi ${safeName},</p>
+    <p style="color:#4a4a4a;line-height:1.6;">Your personalized MyNoor AI recommendation is now available.</p>
+    <p style="text-align:center;margin:28px 0;">
+      <a href="${recommendationUrl}" style="display:inline-block;padding:12px 28px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">View Recommendation</a>
+    </p>
+    <p style="color:#4a4a4a;line-height:1.6;font-size:13px;">If the button doesn't work, copy this link:<br/><span style="word-break:break-all;color:#667eea;">${recommendationUrl}</span></p>
+    <p style="color:#999;font-size:12px;margin-top:32px;">— The PCA-HIJAB Team</p>
+  </div>
+</body></html>`;
+
+    const text = `Hi ${safeName},
+
+Your personalized MyNoor AI recommendation is now available.
+
+View it at: ${recommendationUrl}
+
+— The PCA-HIJAB Team`;
+
+    await this.sendEmail({
+      to: data.userEmail,
+      subject: "Your MyNoor AI Personal Color recommendation is ready!",
+      html,
+      text,
+    });
+  }
+
+  private createVerificationEmailHTML(
+    userName: string,
+    verificationUrl: string,
+  ): string {
     const safeName = this.sanitizeForEmail(userName);
-    
+
     return `
     <!DOCTYPE html>
     <html lang="en">
@@ -314,9 +392,12 @@ class EmailService {
     </html>`;
   }
 
-  private createVerificationEmailText(userName: string, verificationUrl: string): string {
+  private createVerificationEmailText(
+    userName: string,
+    verificationUrl: string,
+  ): string {
     const safeName = this.sanitizeForEmail(userName);
-    
+
     return `
 PCA-HIJAB Email Verification
 
@@ -346,9 +427,12 @@ Need help? Contact our support team at support@pca-hijab.com
 `;
   }
 
-  private createPasswordResetEmailHTML(userName: string, resetUrl: string): string {
+  private createPasswordResetEmailHTML(
+    userName: string,
+    resetUrl: string,
+  ): string {
     const safeName = this.sanitizeForEmail(userName);
-    
+
     return `
     <!DOCTYPE html>
     <html lang="en">
@@ -418,9 +502,12 @@ Need help? Contact our support team at support@pca-hijab.com
     </html>`;
   }
 
-  private createPasswordResetEmailText(userName: string, resetUrl: string): string {
+  private createPasswordResetEmailText(
+    userName: string,
+    resetUrl: string,
+  ): string {
     const safeName = this.sanitizeForEmail(userName);
-    
+
     return `
 PCA-HIJAB Password Reset
 
@@ -451,7 +538,11 @@ Need help? Contact our support team at support@pca-hijab.com
 `;
   }
 
-  private createAccountReminderEmailHTML(userName: string, userEmail: string, loginUrl: string): string {
+  private createAccountReminderEmailHTML(
+    userName: string,
+    userEmail: string,
+    loginUrl: string,
+  ): string {
     const safeName = this.sanitizeForEmail(userName);
     const safeEmail = this.sanitizeForEmail(userEmail);
 
@@ -506,7 +597,11 @@ Need help? Contact our support team at support@pca-hijab.com
     </html>`;
   }
 
-  private createAccountReminderEmailText(userName: string, userEmail: string, loginUrl: string): string {
+  private createAccountReminderEmailText(
+    userName: string,
+    userEmail: string,
+    loginUrl: string,
+  ): string {
     const safeName = this.sanitizeForEmail(userName);
     const safeEmail = this.sanitizeForEmail(userEmail);
 
@@ -527,11 +622,11 @@ The PCA-HIJAB Team`;
   private sanitizeForEmail(input: string): string {
     // Remove any HTML tags and escape special characters
     return input
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/&/g, '&amp;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 }
 

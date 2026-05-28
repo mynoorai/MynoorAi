@@ -30,10 +30,10 @@ export class ContentAPI {
     if (filters?.category) params.append('category', filters.category);
     if (filters?.limit) params.append('limit', filters.limit.toString());
     if (filters?.offset) params.append('offset', filters.offset.toString());
-    
+
     const queryString = params.toString();
     const url = queryString ? `/contents?${queryString}` : '/contents';
-    
+
     const response = await apiClient.get<ContentsResponse>(url);
     return response.data;
   }
@@ -44,12 +44,17 @@ export class ContentAPI {
    * @param category - Optional category filter
    * @returns Promise<ContentsResponse>
    */
-  static async getPopularContents(limit = 10, category?: ContentCategory): Promise<ContentsResponse> {
+  static async getPopularContents(
+    limit = 10,
+    category?: ContentCategory,
+  ): Promise<ContentsResponse> {
     const params = new URLSearchParams();
     params.append('limit', limit.toString());
     if (category) params.append('category', category);
-    
-    const response = await apiClient.get<ContentsResponse>(`/contents/popular?${params.toString()}`);
+
+    const response = await apiClient.get<ContentsResponse>(
+      `/contents/popular?${params.toString()}`,
+    );
     return response.data;
   }
 
@@ -59,11 +64,14 @@ export class ContentAPI {
    * @param category - Optional category filter
    * @returns Promise<ContentsResponse>
    */
-  static async getRecentContents(limit = 10, category?: ContentCategory): Promise<ContentsResponse> {
+  static async getRecentContents(
+    limit = 10,
+    category?: ContentCategory,
+  ): Promise<ContentsResponse> {
     const params = new URLSearchParams();
     params.append('limit', limit.toString());
     if (category) params.append('category', category);
-    
+
     const response = await apiClient.get<ContentsResponse>(`/contents/recent?${params.toString()}`);
     return response.data;
   }
@@ -75,16 +83,18 @@ export class ContentAPI {
    * @returns Promise<ContentsResponse>
    */
   static async getContentsByCategory(
-    category: ContentCategory, 
-    filters?: { limit?: number; offset?: number }
+    category: ContentCategory,
+    filters?: { limit?: number; offset?: number },
   ): Promise<ContentsResponse> {
     const params = new URLSearchParams();
     if (filters?.limit) params.append('limit', filters.limit.toString());
     if (filters?.offset) params.append('offset', filters.offset.toString());
-    
+
     const queryString = params.toString();
-    const url = queryString ? `/contents/category/${category}?${queryString}` : `/contents/category/${category}`;
-    
+    const url = queryString
+      ? `/contents/category/${category}?${queryString}`
+      : `/contents/category/${category}`;
+
     const response = await apiClient.get<ContentsResponse>(url);
     return response.data;
   }
@@ -116,8 +126,24 @@ export class ContentAPI {
    * @returns Promise<ContentsResponse>
    */
   static async getRelatedContents(contentId: string, limit = 4): Promise<ContentsResponse> {
-    const response = await apiClient.get<ContentsResponse>(`/contents/related/${contentId}?limit=${limit}`);
+    const response = await apiClient.get<ContentsResponse>(
+      `/contents/related/${contentId}?limit=${limit}`,
+    );
     return response.data;
+  }
+
+  /**
+   * Record a view for a content (idempotent GET → explicit POST).
+   * Errors (e.g. 429 from rate limit, network) are swallowed because
+   * a missed view should never break content rendering.
+   * @param idOrSlug - Content ID or slug
+   */
+  static async incrementContentView(idOrSlug: string): Promise<void> {
+    try {
+      await apiClient.post(`/contents/${encodeURIComponent(idOrSlug)}/view`);
+    } catch {
+      // Non-fatal: view tracking failures must not affect UX.
+    }
   }
 
   /**
@@ -131,9 +157,9 @@ export class ContentAPI {
       hijab_styling: 'Hijab Styling',
       color_guide: 'Color Guide',
       trend: 'Trends',
-      tutorial: 'Tutorials'
+      tutorial: 'Tutorials',
     };
-    
+
     return categoryNames[category] || category;
   }
 
@@ -148,9 +174,9 @@ export class ContentAPI {
       hijab_styling: '🧕',
       color_guide: '🎨',
       trend: '✨',
-      tutorial: '📚'
+      tutorial: '📚',
     };
-    
+
     return categoryIcons[category] || '📄';
   }
 }

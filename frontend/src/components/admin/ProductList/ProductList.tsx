@@ -6,7 +6,7 @@ import { useToast } from '@/components/ui';
 import { ProductAPI } from '@/services/api/admin';
 import { useAdminStore } from '@/store/useAdminStore';
 import type { Product, ProductCategory, PersonalColorType } from '@/types/admin';
-import { CATEGORY_LABELS, PERSONAL_COLOR_LABELS } from '@/types/admin';
+import { CATEGORY_LABELS, PERSONAL_COLOR_LABELS } from '@/types';
 import { getImageUrl } from '@/utils/imageUrl';
 
 interface ProductListProps {
@@ -18,7 +18,7 @@ export const ProductList: React.FC<ProductListProps> = ({ onCreateClick, onEditC
   const { addToast } = useToast();
   const queryClient = useQueryClient();
   const { filters, setFilters } = useAdminStore();
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -26,10 +26,14 @@ export const ProductList: React.FC<ProductListProps> = ({ onCreateClick, onEditC
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
 
   // Fetch products
-  const { data: products = [], isLoading, error } = useQuery({
+  const {
+    data: products = [],
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['admin', 'products', filters],
     queryFn: () => ProductAPI.products.getAll(filters),
-    retry: 1
+    retry: 1,
   });
 
   // Delete mutation
@@ -40,7 +44,7 @@ export const ProductList: React.FC<ProductListProps> = ({ onCreateClick, onEditC
       addToast({
         type: 'success',
         title: '상품 삭제됨',
-        message: '상품이 성공적으로 삭제되었습니다.'
+        message: '상품이 성공적으로 삭제되었습니다.',
       });
       setDeleteConfirmId(null);
     },
@@ -48,25 +52,31 @@ export const ProductList: React.FC<ProductListProps> = ({ onCreateClick, onEditC
       addToast({
         type: 'error',
         title: '삭제 실패',
-        message: '상품 삭제 중 오류가 발생했습니다.'
+        message: '상품 삭제 중 오류가 발생했습니다.',
       });
-    }
+    },
   });
 
   // Filter products by search term
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredProducts = products.filter((product) =>
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   // Handle category filter
-  const handleCategoryFilter = useCallback((category?: ProductCategory) => {
-    setFilters({ ...filters, category });
-  }, [filters, setFilters]);
+  const handleCategoryFilter = useCallback(
+    (category?: ProductCategory) => {
+      setFilters({ ...filters, category });
+    },
+    [filters, setFilters],
+  );
 
   // Handle personal color filter
-  const handlePersonalColorFilter = useCallback((personalColor?: PersonalColorType) => {
-    setFilters({ ...filters, personalColor });
-  }, [filters, setFilters]);
+  const handlePersonalColorFilter = useCallback(
+    (personalColor?: PersonalColorType) => {
+      setFilters({ ...filters, personalColor });
+    },
+    [filters, setFilters],
+  );
 
   // Clear filters
   const clearFilters = useCallback(() => {
@@ -75,9 +85,10 @@ export const ProductList: React.FC<ProductListProps> = ({ onCreateClick, onEditC
   }, [setFilters]);
 
   const toggleSelect = useCallback((id: string) => {
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }, []);
@@ -117,10 +128,10 @@ export const ProductList: React.FC<ProductListProps> = ({ onCreateClick, onEditC
               color="gray"
               className="gap-2"
               onClick={() => {
-                setSelectedIds(prev => {
+                setSelectedIds((prev) => {
                   // 전체 선택/해제 토글
-                  const allIds = new Set(filteredProducts.map(p => p.id));
-                  const isAllSelected = filteredProducts.every(p => prev.has(p.id));
+                  const allIds = new Set(filteredProducts.map((p) => p.id));
+                  const isAllSelected = filteredProducts.every((p) => prev.has(p.id));
                   return isAllSelected ? new Set<string>() : allIds;
                 });
               }}
@@ -178,7 +189,7 @@ export const ProductList: React.FC<ProductListProps> = ({ onCreateClick, onEditC
               className="pl-10"
             />
           </div>
-          
+
           <Button
             variant="ghost"
             onClick={() => setShowFilters(!showFilters)}
@@ -239,7 +250,9 @@ export const ProductList: React.FC<ProductListProps> = ({ onCreateClick, onEditC
             </div>
 
             <div className="flex justify-end">
-              <Button size="sm" variant="ghost" onClick={clearFilters}>필터 초기화</Button>
+              <Button size="sm" variant="ghost" onClick={clearFilters}>
+                필터 초기화
+              </Button>
             </div>
           </div>
         )}
@@ -353,9 +366,17 @@ export const ProductList: React.FC<ProductListProps> = ({ onCreateClick, onEditC
             try {
               await ProductAPI.products.bulkDelete();
               queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
-              addToast({ type: 'success', title: '전체 삭제 완료', message: '모든 상품이 삭제되었습니다.' });
+              addToast({
+                type: 'success',
+                title: '전체 삭제 완료',
+                message: '모든 상품이 삭제되었습니다.',
+              });
             } catch {
-              addToast({ type: 'error', title: '삭제 실패', message: '상품 일괄 삭제 중 오류가 발생했습니다.' });
+              addToast({
+                type: 'error',
+                title: '삭제 실패',
+                message: '상품 일괄 삭제 중 오류가 발생했습니다.',
+              });
             } finally {
               setDeleteConfirmId(null);
             }
@@ -364,7 +385,11 @@ export const ProductList: React.FC<ProductListProps> = ({ onCreateClick, onEditC
           }
         }}
         title={deleteConfirmId === 'ALL' ? '전체 삭제' : '상품 삭제'}
-        message={deleteConfirmId === 'ALL' ? '모든 상품을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.' : '이 상품을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.'}
+        message={
+          deleteConfirmId === 'ALL'
+            ? '모든 상품을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.'
+            : '이 상품을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.'
+        }
         confirmText="삭제"
         confirmButtonClass="bg-purple-600 hover:bg-purple-700 focus:ring-purple-500"
         isLoading={deleteMutation.isPending}
@@ -378,10 +403,18 @@ export const ProductList: React.FC<ProductListProps> = ({ onCreateClick, onEditC
           try {
             await ProductAPI.products.bulkDelete(Array.from(selectedIds));
             queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
-            addToast({ type: 'success', title: '선택 삭제 완료', message: `${selectedIds.size}개 상품이 삭제되었습니다.` });
+            addToast({
+              type: 'success',
+              title: '선택 삭제 완료',
+              message: `${selectedIds.size}개 상품이 삭제되었습니다.`,
+            });
             clearSelection();
           } catch {
-            addToast({ type: 'error', title: '삭제 실패', message: '선택한 상품 삭제 중 오류가 발생했습니다.' });
+            addToast({
+              type: 'error',
+              title: '삭제 실패',
+              message: '선택한 상품 삭제 중 오류가 발생했습니다.',
+            });
           } finally {
             setBulkConfirmOpen(false);
           }

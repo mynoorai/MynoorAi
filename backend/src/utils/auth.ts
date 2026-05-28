@@ -1,15 +1,15 @@
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
-import { AuthTokens, User, UserRole } from '../types';
-import { config } from '../config/environment';
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import { AuthTokens, User, UserRole } from "../types";
+import { config } from "../config/environment";
 
 // Use validated environment configuration
 const JWT_SECRET = config.JWT_SECRET;
 const JWT_REFRESH_SECRET = config.JWT_REFRESH_SECRET;
 
-const ACCESS_TOKEN_EXPIRES_IN = '15m';
-const REFRESH_TOKEN_EXPIRES_IN = '7d';
+const ACCESS_TOKEN_EXPIRES_IN = "15m";
+const REFRESH_TOKEN_EXPIRES_IN = "7d";
 
 // Password hashing
 export const hashPassword = async (password: string): Promise<string> => {
@@ -17,7 +17,10 @@ export const hashPassword = async (password: string): Promise<string> => {
   return bcrypt.hash(password, salt);
 };
 
-export const comparePassword = async (password: string, hash: string): Promise<boolean> => {
+export const comparePassword = async (
+  password: string,
+  hash: string,
+): Promise<boolean> => {
   return bcrypt.compare(password, hash);
 };
 
@@ -29,24 +32,24 @@ interface TokenPayload {
 
 const buildTokenPayload = (userId: string, role: UserRole): TokenPayload => ({
   userId,
-  role
+  role,
 });
 
 // Backward-compatible overloads: allow calling with (userId) only, defaulting role to 'user'
 export function generateTokens(userId: string): AuthTokens;
 export function generateTokens(userId: string, role: UserRole): AuthTokens;
 export function generateTokens(userId: string, role?: UserRole): AuthTokens {
-  const effectiveRole: UserRole = role ?? 'user';
+  const effectiveRole: UserRole = role ?? "user";
   const accessToken = jwt.sign(
-    { ...buildTokenPayload(userId, effectiveRole), type: 'access' },
+    { ...buildTokenPayload(userId, effectiveRole), type: "access" },
     JWT_SECRET,
-    { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
+    { expiresIn: ACCESS_TOKEN_EXPIRES_IN },
   );
 
   const refreshToken = jwt.sign(
-    { ...buildTokenPayload(userId, effectiveRole), type: 'refresh' },
+    { ...buildTokenPayload(userId, effectiveRole), type: "refresh" },
     JWT_REFRESH_SECRET,
-    { expiresIn: REFRESH_TOKEN_EXPIRES_IN }
+    { expiresIn: REFRESH_TOKEN_EXPIRES_IN },
   );
 
   return { accessToken, refreshToken };
@@ -58,33 +61,39 @@ export interface AccessTokenPayload {
   role: UserRole;
 }
 
+interface DecodedToken {
+  userId: string;
+  role?: UserRole;
+  type: "access" | "refresh";
+}
+
 export const verifyAccessToken = (token: string): AccessTokenPayload => {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    if (decoded.type !== 'access') {
-      throw new Error('Invalid token type');
+    const decoded = jwt.verify(token, JWT_SECRET) as DecodedToken;
+    if (decoded.type !== "access") {
+      throw new Error("Invalid token type");
     }
-    return { userId: decoded.userId, role: decoded.role ?? 'user' };
-  } catch (error) {
-    throw new Error('Invalid or expired access token');
+    return { userId: decoded.userId, role: decoded.role ?? "user" };
+  } catch {
+    throw new Error("Invalid or expired access token");
   }
 };
 
 export const verifyRefreshToken = (token: string): AccessTokenPayload => {
   try {
-    const decoded = jwt.verify(token, JWT_REFRESH_SECRET) as any;
-    if (decoded.type !== 'refresh') {
-      throw new Error('Invalid token type');
+    const decoded = jwt.verify(token, JWT_REFRESH_SECRET) as DecodedToken;
+    if (decoded.type !== "refresh") {
+      throw new Error("Invalid token type");
     }
-    return { userId: decoded.userId, role: decoded.role ?? 'user' };
-  } catch (error) {
-    throw new Error('Invalid or expired refresh token');
+    return { userId: decoded.userId, role: decoded.role ?? "user" };
+  } catch {
+    throw new Error("Invalid or expired refresh token");
   }
 };
 
 // Generate random tokens for email verification and password reset
 export const generateRandomToken = (): string => {
-  return crypto.randomBytes(32).toString('hex');
+  return crypto.randomBytes(32).toString("hex");
 };
 
 // Get token expiry date
@@ -107,7 +116,14 @@ export const getVerificationTokenExpiryDate = (): Date => {
 };
 
 // Sanitize user object (remove sensitive data)
-export const sanitizeUser = (user: User): Omit<User, 'passwordHash' | 'verificationToken' | 'resetPasswordToken'> => {
-  const { passwordHash, verificationToken, resetPasswordToken, ...sanitizedUser } = user;
+export const sanitizeUser = (
+  user: User,
+): Omit<User, "passwordHash" | "verificationToken" | "resetPasswordToken"> => {
+  const {
+    passwordHash,
+    verificationToken,
+    resetPasswordToken,
+    ...sanitizedUser
+  } = user;
   return sanitizedUser;
 };

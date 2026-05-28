@@ -3,7 +3,6 @@ import { persist } from 'zustand/middleware';
 import { AuthAPI } from '@/services/api/auth';
 import { UserAPI } from '@/services/api/user';
 import { useAppStore } from '@/store';
-import { apiClient } from '@/services/api/client';
 import { secureError } from '@/utils/secureLogging';
 
 type ApiErrorResponse = {
@@ -18,7 +17,7 @@ type ApiErrorResponse = {
 const resolveErrorMessage = (
   error: unknown,
   fallbackMessage: string,
-  overrides: Record<number, string> = {}
+  overrides: Record<number, string> = {},
 ): string => {
   if (typeof error === 'string') {
     return error;
@@ -87,13 +86,13 @@ export const useAuthStore = create<AuthState>()(
         try {
           const response = await AuthAPI.login(email, password);
           const { user } = response.data;
-          
+
           set({
             user,
             isAuthenticated: true,
             isAdminSession: false, // 일반 로그인은 관리자 세션 아님
             isLoading: false,
-            error: null
+            error: null,
           });
 
           // After login, merge local saved/viewed with server and refresh from server
@@ -103,7 +102,7 @@ export const useAuthStore = create<AuthState>()(
             await UserAPI.mergeViewedProducts(app.viewedProducts || []);
             const [serverSaved, serverViewed] = await Promise.all([
               UserAPI.getSavedProducts(),
-              UserAPI.getViewedProducts()
+              UserAPI.getViewedProducts(),
             ]);
             app.setSavedProducts(serverSaved);
             app.setViewedProducts(serverViewed);
@@ -112,12 +111,12 @@ export const useAuthStore = create<AuthState>()(
           }
         } catch (error: unknown) {
           const message = resolveErrorMessage(error, 'Login failed', {
-            401: 'The email or password you entered is incorrect. Please try again.'
+            401: 'The email or password you entered is incorrect. Please try again.',
           });
 
           set({
             isLoading: false,
-            error: message
+            error: message,
           });
           throw new Error(message);
         }
@@ -128,20 +127,16 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null });
         try {
           const response = await AuthAPI.adminLogin(email, password);
-          const { user, accessToken } = response.data;
+          const { user } = response.data;
 
-          // Attach and persist Bearer token for admin session (handles 3rd-party cookie blocking)
-          if (accessToken) {
-            try { localStorage.setItem('adminAccessToken', accessToken); } catch {}
-            apiClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-          }
+          // 관리자 인증은 HttpOnly 쿠키로만 유지 (토큰을 localStorage/메모리에 저장하지 않음 — XSS 방어)
 
           set({
             user,
             isAuthenticated: true,
             isAdminSession: true, // 관리자 전용 로그인 통과 플래그
             isLoading: false,
-            error: null
+            error: null,
           });
 
           // Post-login sync for admin as well
@@ -151,7 +146,7 @@ export const useAuthStore = create<AuthState>()(
             await UserAPI.mergeViewedProducts(app.viewedProducts || []);
             const [serverSaved, serverViewed] = await Promise.all([
               UserAPI.getSavedProducts(),
-              UserAPI.getViewedProducts()
+              UserAPI.getViewedProducts(),
             ]);
             app.setSavedProducts(serverSaved);
             app.setViewedProducts(serverViewed);
@@ -161,7 +156,7 @@ export const useAuthStore = create<AuthState>()(
         } catch (error: unknown) {
           const message = resolveErrorMessage(error, 'Admin login failed', {
             401: 'Invalid admin credentials. Please check and try again.',
-            503: 'Admin login is not configured on the server.'
+            503: 'Admin login is not configured on the server.',
           });
 
           set({ isLoading: false, error: message });
@@ -178,17 +173,17 @@ export const useAuthStore = create<AuthState>()(
             user,
             isAuthenticated: true,
             isLoading: false,
-            error: null
+            error: null,
           });
         } catch (error: unknown) {
           const status = (error as ApiErrorResponse)?.response?.status;
           const friendlyMessage = resolveErrorMessage(error, 'Signup failed', {
-            409: 'This email address is already registered. Please sign in or use another email.'
+            409: 'This email address is already registered. Please sign in or use another email.',
           });
 
           set({
             isLoading: false,
-            error: friendlyMessage
+            error: friendlyMessage,
           });
 
           const enriched = Object.assign(new Error(friendlyMessage), { status });
@@ -202,13 +197,12 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           secureError('Logout error:', error);
         } finally {
-          try { delete apiClient.defaults.headers.common['Authorization']; } catch {}
-          try { localStorage.removeItem('adminAccessToken'); } catch {}
+          // HttpOnly 쿠키는 backend가 logout 응답에서 clear 한다.
           set({
             user: null,
             isAuthenticated: false,
             isAdminSession: false,
-            error: null
+            error: null,
           });
         }
       },
@@ -220,7 +214,7 @@ export const useAuthStore = create<AuthState>()(
           // If refresh fails, logout the user
           set({
             user: null,
-            isAuthenticated: false
+            isAuthenticated: false,
           });
           throw error;
         }
@@ -242,18 +236,20 @@ export const useAuthStore = create<AuthState>()(
           const response = await AuthAPI.getMe();
           set({
             user: response.data.user,
-            isAuthenticated: true
+            isAuthenticated: true,
           });
           // Refresh saved/viewed lists from server on successful auth recovery
           try {
             const app = useAppStore.getState();
             const [serverSaved, serverViewed] = await Promise.all([
               UserAPI.getSavedProducts(),
-              UserAPI.getViewedProducts()
+              UserAPI.getViewedProducts(),
             ]);
             app.setSavedProducts(serverSaved);
             app.setViewedProducts(serverViewed);
-          } catch {}
+          } catch {
+            /* noop */
+          }
         } catch {
           // Token might be expired, try to refresh
           try {
@@ -262,25 +258,25 @@ export const useAuthStore = create<AuthState>()(
             const response = await AuthAPI.getMe();
             set({
               user: response.data.user,
-              isAuthenticated: true
+              isAuthenticated: true,
             });
           } catch {
             // Both access and refresh failed, logout
             set({
               user: null,
-              isAuthenticated: false
+              isAuthenticated: false,
             });
           }
         }
-      }
+      },
     }),
     {
       name: 'auth-storage',
       partialize: (state) => ({
         // Only persist minimal data - tokens are in HttpOnly cookies
-        isAuthenticated: state.isAuthenticated
+        isAuthenticated: state.isAuthenticated,
         // isAdminSession은 보안상 세션 스코프로만 사용 (persist하지 않음)
-      })
-    }
-  )
+      }),
+    },
+  ),
 );

@@ -4,14 +4,13 @@ import { ROUTES } from '@/utils/constants';
 import { useAppStore } from '@/store';
 import { useAuthStore } from '@/store/useAuthStore';
 import { AuthAPI } from '@/services/api/auth';
-import { trackAIAnalysis, trackEvent, trackError } from '@/utils/analytics';
+import { trackAIAnalysis, trackEvent } from '@/utils/analytics';
 import { toast } from 'react-hot-toast';
-import { 
-  PersonalColorCard, 
-  ColorPaletteSection, 
+import {
+  PersonalColorCard,
+  ColorPaletteSection,
   HijabCarousel,
-  QRSection,
-  SEASON_DATA
+  SEASON_DATA,
 } from '@/components/result';
 import '../styles/result-page-ipad.css';
 
@@ -21,9 +20,9 @@ function getSeasonKey(personalColorEn: string): 'spring' | 'summer' | 'autumn' |
     'Spring Warm': 'spring',
     'Summer Cool': 'summer',
     'Autumn Warm': 'autumn',
-    'Winter Cool': 'winter'
+    'Winter Cool': 'winter',
   };
-  
+
   return seasonMap[personalColorEn] || 'spring';
 }
 
@@ -41,9 +40,9 @@ const ResultPageV2 = (): JSX.Element => {
         season: seasonKey,
         tone: seasonKey,
         confidence: analysisResult.confidence || 0,
-        processingTime: 0
+        processingTime: 0,
       });
-      
+
       // Save to user profile if authenticated
       if (isAuthenticated && !user?.hasPersonalColorDiagnosis) {
         const saveDiagnosisToProfile = async () => {
@@ -52,9 +51,9 @@ const ResultPageV2 = (): JSX.Element => {
               season: analysisResult.personal_color,
               seasonEn: analysisResult.personal_color_en,
               confidence: analysisResult.confidence || 0,
-              personalColorResult: analysisResult
+              personalColorResult: analysisResult,
             });
-            
+
             if (response.data.user) {
               setUser({
                 ...response.data.user,
@@ -63,21 +62,21 @@ const ResultPageV2 = (): JSX.Element => {
                   season: analysisResult.personal_color,
                   seasonEn: analysisResult.personal_color_en,
                   confidence: analysisResult.confidence || 0,
-                  diagnosedAt: new Date()
-                }
+                  diagnosedAt: new Date(),
+                },
               });
             }
-            
+
             toast.success('Your personal color analysis has been saved to your profile!');
             trackEvent('diagnosis_saved_to_profile', {
               personal_color: analysisResult.personal_color_en,
-              confidence: analysisResult.confidence || 0
+              confidence: analysisResult.confidence || 0,
             });
           } catch (error) {
             console.error('Failed to save diagnosis to profile:', error);
           }
         };
-        
+
         saveDiagnosisToProfile();
       }
     }
@@ -92,7 +91,7 @@ const ResultPageV2 = (): JSX.Element => {
         page: 'result',
         user_flow_step: 'result_page_entered',
         personal_color: analysisResult.personal_color_en,
-        confidence_score: Math.round((analysisResult.confidence || 0) * 100)
+        confidence_score: Math.round((analysisResult.confidence || 0) * 100),
       });
     }
   }, [analysisResult, navigate]);
@@ -103,57 +102,57 @@ const ResultPageV2 = (): JSX.Element => {
     personal_color_en: 'Spring Warm',
     confidence: 0.92,
     uploaded_image_url: null,
-    ai_feedback: 'Mock result for development'
+    ai_feedback: 'Mock result for development',
   };
 
   const seasonKey = getSeasonKey(result.personal_color_en);
 
   return (
-    <div className="min-h-screen overflow-x-hidden" style={{ 
-      background: '#F8F8F8',
-      width: '100vw',
-      minHeight: '100dvh' // Dynamic viewport height
-    }}>
+    <div
+      className="min-h-screen overflow-x-hidden"
+      style={{
+        background: '#F8F8F8',
+        width: '100vw',
+        minHeight: '100dvh', // Dynamic viewport height
+      }}
+    >
       {/* Container - Original mobile, optimized iPad */}
-      <div 
+      <div
         className="result-container w-full mx-auto min-h-screen flex flex-col items-center relative px-4 md:px-6 lg:px-8"
-        style={{ 
+        style={{
           background: '#F8F8F8',
           minHeight: '100dvh',
-          maxWidth: '100%'
+          maxWidth: '100%',
         }}
       >
-        
         {/* Character Image - Mobile fixed position, iPad centered */}
-        <div 
+        <div
           className="character-image-container absolute z-[9999] right-[68px] md:right-auto md:left-1/2 md:-translate-x-1/2"
-          style={{ 
-            top: '96px'
+          style={{
+            top: '96px',
           }}
         >
           {/* Mobile: 265x265 square, iPad/Desktop: responsive */}
-          <div 
-            className="w-[265px] h-[265px] md:w-[200px] md:h-auto lg:w-[180px]"
-          >
-            <img 
+          <div className="w-[265px] h-[265px] md:w-[200px] md:h-auto lg:w-[180px]">
+            <img
               src={SEASON_DATA[seasonKey].character}
               alt={`${SEASON_DATA[seasonKey].title} character`}
               className="w-full h-full object-cover md:object-contain"
               style={{
                 aspectRatio: '1/1',
                 '@media (min-width: 768px)': {
-                  aspectRatio: '139/132'
-                }
+                  aspectRatio: '139/132',
+                },
               }}
             />
           </div>
         </div>
-        
+
         {/* Section 1: Personal Color Card - Original mobile, iPad optimized */}
         <div className="personal-color-card w-full max-w-[402px] md:max-w-[600px] lg:max-w-[768px] mx-auto">
-          <PersonalColorCard 
-            result={result} 
-            userName={user?.fullName || instagramId || undefined} 
+          <PersonalColorCard
+            result={result}
+            userName={user?.fullName || instagramId || undefined}
           />
         </div>
 

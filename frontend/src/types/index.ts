@@ -50,13 +50,17 @@ export interface UserPreferences {
 }
 
 // Recommendation Type
+export type RecommendationStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
 export interface Recommendation {
   id: string;
   sessionId: string;
   instagramId: string;
   personalColorResult: PersonalColorResult;
   userPreferences: UserPreferences;
-  status: 'pending' | 'processing' | 'completed';
+  productIds: string[];
+  status: RecommendationStatus;
+  completedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -150,7 +154,7 @@ export const CATEGORY_LABELS: Record<ProductCategory, string> = {
   hijab: 'Hijab',
   lens: 'Contact Lens',
   lip: 'Lipstick',
-  blush: 'Blusher'
+  blush: 'Blusher',
 };
 
 // Personal color labels for UI
@@ -158,11 +162,16 @@ export const PERSONAL_COLOR_LABELS: Record<PersonalColorType, string> = {
   spring_warm: 'Spring Warm',
   autumn_warm: 'Autumn Warm',
   summer_cool: 'Summer Cool',
-  winter_cool: 'Winter Cool'
+  winter_cool: 'Winter Cool',
 };
 
 // Content Types
-export type ContentCategory = 'beauty_tips' | 'hijab_styling' | 'color_guide' | 'trend' | 'tutorial';
+export type ContentCategory =
+  | 'beauty_tips'
+  | 'hijab_styling'
+  | 'color_guide'
+  | 'trend'
+  | 'tutorial';
 export type ContentStatus = 'draft' | 'published';
 
 export interface Content {

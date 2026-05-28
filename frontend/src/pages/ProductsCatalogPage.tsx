@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Package, Search, X, Filter, Crown } from 'lucide-react';
 import { ProductCard } from '@/components/products';
@@ -8,7 +8,7 @@ import { Button, Text } from '@/components/ui';
 import { AuthRequired, PersonalColorRequired } from '@/components/auth';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { useAppStore } from '@/store';
-import type { Product, ProductCategory, PersonalColorType } from '@/types';
+import type { ProductCategory, PersonalColorType } from '@/types';
 import { CATEGORY_LABELS, PERSONAL_COLOR_LABELS } from '@/types';
 
 type TabType = 'all' | 'recommended' | ProductCategory;
@@ -23,9 +23,9 @@ const ProductsCatalogPage: React.FC = () => {
     authModalFeature,
     personalColorModalFeature,
     closeAuthModal,
-    closePersonalColorModal
+    closePersonalColorModal,
   } = useRequireAuth();
-  
+
   // Filter states
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,20 +38,29 @@ const ProductsCatalogPage: React.FC = () => {
     {
       id: 'recommended',
       label: 'Recommended',
-      icon: <Crown className="w-4 h-4" />
+      icon: <Crown className="w-4 h-4" />,
     },
     { id: 'hijab', label: 'Hijabs' },
     { id: 'blush', label: 'Blushers' },
     { id: 'lip', label: 'Lips' },
-    { id: 'lens', label: 'Lenses' }
+    { id: 'lens', label: 'Lenses' },
   ];
 
-  const personalColors: PersonalColorType[] = ['spring_warm', 'autumn_warm', 'summer_cool', 'winter_cool'];
+  const personalColors: PersonalColorType[] = [
+    'spring_warm',
+    'autumn_warm',
+    'summer_cool',
+    'winter_cool',
+  ];
 
   // No-op: dropdown removed
 
   // Fetch products
-  const { data: products = [], isLoading, error } = useQuery({
+  const {
+    data: products = [],
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['products'],
     queryFn: () => ProductAPI.getProducts(),
     select: (response) => response.data,
@@ -61,14 +70,14 @@ const ProductsCatalogPage: React.FC = () => {
   // Get user's personal color type
   const getUserPersonalColorType = (): PersonalColorType | null => {
     if (!analysisResult) return null;
-    
+
     const colorMapping: Record<string, PersonalColorType> = {
-      'spring': 'spring_warm',
-      'autumn': 'autumn_warm',
-      'summer': 'summer_cool',
-      'winter': 'winter_cool'
+      spring: 'spring_warm',
+      autumn: 'autumn_warm',
+      summer: 'summer_cool',
+      winter: 'winter_cool',
     };
-    
+
     return colorMapping[analysisResult.personal_color_en.toLowerCase()] || null;
   };
 
@@ -78,8 +87,10 @@ const ProductsCatalogPage: React.FC = () => {
       // Search filter
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase();
-        if (!product.name.toLowerCase().includes(searchLower) &&
-            !product.description?.toLowerCase().includes(searchLower)) {
+        if (
+          !product.name.toLowerCase().includes(searchLower) &&
+          !product.description?.toLowerCase().includes(searchLower)
+        ) {
           return false;
         }
       }
@@ -98,8 +109,8 @@ const ProductsCatalogPage: React.FC = () => {
 
       // Personal color filter
       if (selectedColors.length > 0) {
-        const hasMatchingColor = product.personalColors.some(color => 
-          selectedColors.includes(color)
+        const hasMatchingColor = product.personalColors.some((color) =>
+          selectedColors.includes(color),
         );
         if (!hasMatchingColor) return false;
       }
@@ -110,10 +121,8 @@ const ProductsCatalogPage: React.FC = () => {
 
   // Filter handlers
   const handleColorToggle = useCallback((color: PersonalColorType) => {
-    setSelectedColors(prev => 
-      prev.includes(color)
-        ? prev.filter(c => c !== color)
-        : [...prev, color]
+    setSelectedColors((prev) =>
+      prev.includes(color) ? prev.filter((c) => c !== color) : [...prev, color],
     );
   }, []);
 
@@ -142,12 +151,10 @@ const ProductsCatalogPage: React.FC = () => {
       <PageLayout>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center">
-            <Text color="error" mb="4">We ran into an issue loading products.</Text>
-            <Button 
-              onClick={() => window.location.reload()}
-              variant="solid"
-              color="primary"
-            >
+            <Text color="error" mb="4">
+              We ran into an issue loading products.
+            </Text>
+            <Button onClick={() => window.location.reload()} variant="solid" color="primary">
               Try again
             </Button>
           </div>
@@ -196,7 +203,9 @@ const ProductsCatalogPage: React.FC = () => {
                     <button
                       onClick={() => setSelectedColors([])}
                       className="ml-auto text-purple-600 hover:text-purple-700"
-                    >Clear</button>
+                    >
+                      Clear
+                    </button>
                   )}
                 </div>
                 <div className="flex overflow-x-auto whitespace-nowrap gap-2 pr-1">
@@ -255,7 +264,8 @@ const ProductsCatalogPage: React.FC = () => {
           {/* Results count */}
           <div className="mb-6">
             <p className="text-sm text-gray-600">
-              Viewing {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'} in{' '}
+              Viewing {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}{' '}
+              in{' '}
               {activeTab === 'all'
                 ? 'All categories'
                 : activeTab === 'recommended'
@@ -286,14 +296,10 @@ const ProductsCatalogPage: React.FC = () => {
           )}
         </div>
       </div>
-      
+
       {/* Auth Required Modal */}
-      <AuthRequired 
-        isOpen={showAuthModal}
-        onClose={closeAuthModal}
-        feature={authModalFeature}
-      />
-      
+      <AuthRequired isOpen={showAuthModal} onClose={closeAuthModal} feature={authModalFeature} />
+
       {/* Personal Color Required Modal */}
       <PersonalColorRequired
         isOpen={showPersonalColorModal}
