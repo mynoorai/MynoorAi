@@ -493,7 +493,7 @@ export class PostgresDatabase {
 
   async getSession(sessionId: string): Promise<Session | undefined> {
     const query = `
-      SELECT id, instagram_id, uploaded_image_url, analysis_result, 
+      SELECT id, instagram_id, user_id, uploaded_image_url, analysis_result,
              created_at, updated_at
       FROM sessions
       WHERE id = $1
@@ -519,6 +519,7 @@ export class PostgresDatabase {
     return {
       id: row.id,
       instagramId: row.instagram_id,
+      userId: row.user_id ?? undefined,
       uploadedImageUrl: row.uploaded_image_url,
       analysisResult,
       createdAt: row.created_at,
@@ -707,11 +708,14 @@ export class PostgresDatabase {
     status: Recommendation["status"],
   ): Promise<Recommendation | undefined> {
     // When the status flips to `completed`, stamp completed_at exactly once.
+    // Explicit ::text casts avoid Postgres "inconsistent types for parameter
+    // $1" (42P08): the same param is used as varchar (SET status = $1) and
+    // text literal compare (CASE WHEN $1 = 'completed').
     const query = `
       UPDATE recommendations
-      SET status = $1,
+      SET status = $1::text,
           completed_at = CASE
-            WHEN $1 = 'completed' AND completed_at IS NULL THEN CURRENT_TIMESTAMP
+            WHEN $1::text = 'completed' AND completed_at IS NULL THEN CURRENT_TIMESTAMP
             ELSE completed_at
           END
       WHERE id = $2
@@ -1950,12 +1954,16 @@ export class PostgresDatabase {
     contentId: string,
     status: ContentStatus,
   ): Promise<Content | undefined> {
+    // NOTE: explicit ::text casts required — without them Postgres infers
+    // inconsistent types for $1 ("text vs character varying", error 42P08)
+    // because the same parameter is used in both `SET status = $1` (varchar
+    // column) and the `CASE WHEN $1 = 'published'` text comparison.
     const query = `
-      UPDATE contents 
-      SET status = $1,
+      UPDATE contents
+      SET status = $1::text,
           updated_at = NOW(),
           published_at = CASE
-            WHEN $1 = 'published' THEN COALESCE(published_at, NOW())
+            WHEN $1::text = 'published' THEN COALESCE(published_at, NOW())
             ELSE published_at
           END
       WHERE id = $2
