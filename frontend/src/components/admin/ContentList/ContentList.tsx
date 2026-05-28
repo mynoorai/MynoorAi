@@ -1,10 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit, Trash2, Search, Filter, Eye, Calendar, Tag } from 'lucide-react';
-import { Button, Card, Input, LoadingSpinner, ConfirmModal } from '@/components/ui';
+import { Plus, Edit, Trash2, Search, Filter, Eye, Calendar } from 'lucide-react';
+import { Button, Card, LoadingSpinner, ConfirmModal } from '@/components/ui';
 import { useToast } from '@/components/ui';
 import { ProductAPI } from '@/services/api/admin';
-import { useAdminStore } from '@/store/useAdminStore';
 import type { Content, ContentCategory, ContentStatus } from '@/types/admin';
 import { CONTENT_CATEGORY_LABELS, CONTENT_STATUS_LABELS } from '@/types/admin';
 
@@ -16,7 +15,7 @@ interface ContentListProps {
 export const ContentList: React.FC<ContentListProps> = ({ onCreateClick, onEditClick }) => {
   const { addToast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<ContentCategory | ''>('');
   const [filterStatus, setFilterStatus] = useState<ContentStatus | ''>('');
@@ -25,13 +24,18 @@ export const ContentList: React.FC<ContentListProps> = ({ onCreateClick, onEditC
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
 
   // Fetch contents
-  const { data: contents = [], isLoading, error } = useQuery({
+  const {
+    data: contents = [],
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['admin', 'contents', filterCategory, filterStatus],
-    queryFn: () => ProductAPI.contents.getAll({ 
-      category: filterCategory || undefined, 
-      status: filterStatus || undefined 
-    }),
-    retry: 1
+    queryFn: () =>
+      ProductAPI.contents.getAll({
+        category: filterCategory || undefined,
+        status: filterStatus || undefined,
+      }),
+    retry: 1,
   });
 
   // Delete mutation
@@ -42,7 +46,7 @@ export const ContentList: React.FC<ContentListProps> = ({ onCreateClick, onEditC
       addToast({
         type: 'success',
         title: '콘텐츠 삭제됨',
-        message: '콘텐츠가 성공적으로 삭제되었습니다.'
+        message: '콘텐츠가 성공적으로 삭제되었습니다.',
       });
       setDeleteConfirmId(null);
     },
@@ -50,56 +54,63 @@ export const ContentList: React.FC<ContentListProps> = ({ onCreateClick, onEditC
       addToast({
         type: 'error',
         title: '삭제 실패',
-        message: '콘텐츠 삭제 중 오류가 발생했습니다.'
+        message: '콘텐츠 삭제 중 오류가 발생했습니다.',
       });
-    }
+    },
   });
 
   // Publish/Unpublish mutation
   const togglePublishMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: ContentStatus }) => 
+    mutationFn: ({ id, status }: { id: string; status: ContentStatus }) =>
       ProductAPI.contents.updateStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'contents'] });
       addToast({
         type: 'success',
         title: '상태 업데이트 완료',
-        message: '콘텐츠 상태가 업데이트되었습니다.'
+        message: '콘텐츠 상태가 업데이트되었습니다.',
       });
     },
     onError: () => {
       addToast({
         type: 'error',
         title: '상태 업데이트 실패',
-        message: '상태 업데이트 중 오류가 발생했습니다.'
+        message: '상태 업데이트 중 오류가 발생했습니다.',
       });
-    }
+    },
   });
 
   // Filter contents based on search
-  const filteredContents = contents.filter(content => {
+  const filteredContents = contents.filter((content) => {
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
     return (
       content.title.toLowerCase().includes(search) ||
       content.subtitle?.toLowerCase().includes(search) ||
-      content.tags.some(tag => tag.toLowerCase().includes(search))
+      content.tags.some((tag) => tag.toLowerCase().includes(search))
     );
   });
 
-  const handleDelete = useCallback((id: string) => {
-    deleteMutation.mutate(id);
-  }, [deleteMutation]);
+  const handleDelete = useCallback(
+    (id: string) => {
+      deleteMutation.mutate(id);
+    },
+    [deleteMutation],
+  );
 
-  const handleTogglePublish = useCallback((content: Content) => {
-    const newStatus: ContentStatus = content.status === 'published' ? 'draft' : 'published';
-    togglePublishMutation.mutate({ id: content.id, status: newStatus });
-  }, [togglePublishMutation]);
+  const handleTogglePublish = useCallback(
+    (content: Content) => {
+      const newStatus: ContentStatus = content.status === 'published' ? 'draft' : 'published';
+      togglePublishMutation.mutate({ id: content.id, status: newStatus });
+    },
+    [togglePublishMutation],
+  );
 
   const toggleSelect = useCallback((id: string) => {
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }, []);
@@ -123,9 +134,9 @@ export const ContentList: React.FC<ContentListProps> = ({ onCreateClick, onEditC
           <Button
             variant="ghost"
             onClick={() => {
-              setSelectedIds(prev => {
-                const allIds = new Set(filteredContents.map(c => c.id));
-                const isAll = filteredContents.every(c => prev.has(c.id));
+              setSelectedIds((prev) => {
+                const allIds = new Set(filteredContents.map((c) => c.id));
+                const isAll = filteredContents.every((c) => prev.has(c.id));
                 return isAll ? new Set<string>() : allIds;
               });
             }}
@@ -171,7 +182,9 @@ export const ContentList: React.FC<ContentListProps> = ({ onCreateClick, onEditC
           >
             <option value="">모든 카테고리</option>
             {Object.entries(CONTENT_CATEGORY_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
+              <option key={value} value={value}>
+                {label}
+              </option>
             ))}
           </select>
 
@@ -183,7 +196,9 @@ export const ContentList: React.FC<ContentListProps> = ({ onCreateClick, onEditC
           >
             <option value="">모든 상태</option>
             {Object.entries(CONTENT_STATUS_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
+              <option key={value} value={value}>
+                {label}
+              </option>
             ))}
           </select>
         </div>
@@ -210,7 +225,10 @@ export const ContentList: React.FC<ContentListProps> = ({ onCreateClick, onEditC
       ) : (
         <div className="space-y-4">
           {filteredContents.map((content) => (
-            <Card key={content.id} className={`p-6 hover:shadow-lg transition-shadow ${selectedIds.has(content.id) ? 'ring-2 ring-purple-500' : ''}`}>
+            <Card
+              key={content.id}
+              className={`p-6 hover:shadow-lg transition-shadow ${selectedIds.has(content.id) ? 'ring-2 ring-purple-500' : ''}`}
+            >
               <div className="flex items-start gap-4">
                 {/* Thumbnail */}
                 <div className="flex-shrink-0">
@@ -238,16 +256,16 @@ export const ContentList: React.FC<ContentListProps> = ({ onCreateClick, onEditC
                         {content.title}
                       </h3>
                       {content.subtitle && (
-                        <p className="text-sm text-gray-600 truncate">
-                          {content.subtitle}
-                        </p>
+                        <p className="text-sm text-gray-600 truncate">{content.subtitle}</p>
                       )}
                     </div>
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      content.status === 'published' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
+                    <span
+                      className={`px-2 py-1 text-xs rounded-full ${
+                        content.status === 'published'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}
+                    >
                       {CONTENT_STATUS_LABELS[content.status]}
                     </span>
                   </div>
@@ -289,20 +307,26 @@ export const ContentList: React.FC<ContentListProps> = ({ onCreateClick, onEditC
                       size="sm"
                       onClick={() => onEditClick(content)}
                       leftIcon={<Edit className="w-4 h-4" />}
-                    >수정</Button>
+                    >
+                      수정
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleTogglePublish(content)}
                       loading={togglePublishMutation.isPending}
-                    >{content.status === 'published' ? '비공개' : '공개'}</Button>
+                    >
+                      {content.status === 'published' ? '비공개' : '공개'}
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setDeleteConfirmId(content.id)}
                       leftIcon={<Trash2 className="w-4 h-4" />}
                       className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >삭제</Button>
+                    >
+                      삭제
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -333,10 +357,18 @@ export const ContentList: React.FC<ContentListProps> = ({ onCreateClick, onEditC
           try {
             await ProductAPI.contents.bulkDelete(Array.from(selectedIds));
             queryClient.invalidateQueries({ queryKey: ['admin', 'contents'] });
-            addToast({ type: 'success', title: '선택 삭제 완료', message: `${selectedIds.size}개 콘텐츠가 삭제되었습니다.` });
+            addToast({
+              type: 'success',
+              title: '선택 삭제 완료',
+              message: `${selectedIds.size}개 콘텐츠가 삭제되었습니다.`,
+            });
             clearSelection();
           } catch {
-            addToast({ type: 'error', title: '삭제 실패', message: '선택한 콘텐츠 삭제 중 오류가 발생했습니다.' });
+            addToast({
+              type: 'error',
+              title: '삭제 실패',
+              message: '선택한 콘텐츠 삭제 중 오류가 발생했습니다.',
+            });
           } finally {
             setBulkConfirmOpen(false);
           }

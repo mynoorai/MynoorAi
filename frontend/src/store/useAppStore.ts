@@ -127,7 +127,7 @@ export const useAppStore = create<AppState & AppActions>()(
             if (isAuthenticated) {
               void UserAPI.upsertViewedProduct(productId, newViewed.viewedAt);
             }
-          } catch {}
+          } catch { /* noop */ }
           return { viewedProducts: [newViewed, ...filtered].slice(0, 10) };
         }),
         
@@ -138,14 +138,14 @@ export const useAppStore = create<AppState & AppActions>()(
             try {
               const { isAuthenticated } = useAuthStore.getState();
               if (isAuthenticated) { void UserAPI.removeSavedProduct(productId); }
-            } catch {}
+            } catch { /* noop */ }
             return { savedProducts: state.savedProducts.filter(p => p.productId !== productId) };
           } else {
             const newSaved: SavedProduct = { productId, savedAt: new Date().toISOString() };
             try {
               const { isAuthenticated } = useAuthStore.getState();
               if (isAuthenticated) { void UserAPI.addSavedProduct(productId, newSaved.savedAt); }
-            } catch {}
+            } catch { /* noop */ }
             return { savedProducts: [newSaved, ...state.savedProducts] };
           }
         }),

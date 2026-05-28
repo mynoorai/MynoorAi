@@ -10,7 +10,7 @@ const VerifyEmailPage = (): JSX.Element => {
   const navigate = useNavigate();
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'invalid'>('loading');
   const [message, setMessage] = useState<string>('');
-  
+
   const token = searchParams.get('token');
 
   useEffect(() => {
@@ -26,17 +26,17 @@ const VerifyEmailPage = (): JSX.Element => {
 
     try {
       const response = await AuthAPI.verifyEmail(token);
-      
+
       if (response.success) {
         setStatus('success');
         setMessage('Your email has been successfully verified! You can now login to your account.');
-        
+
         // Auto-redirect to login after 3 seconds
         setTimeout(() => {
-          navigate('/login', { 
-            state: { 
-              message: 'Email verified successfully! Please login to continue.' 
-            } 
+          navigate('/login', {
+            state: {
+              message: 'Email verified successfully! Please login to continue.',
+            },
           });
         }, 3000);
       } else {
@@ -56,10 +56,10 @@ const VerifyEmailPage = (): JSX.Element => {
   };
 
   const handleResendVerification = async (): Promise<void> => {
-    navigate('/login', { 
-      state: { 
-        showResendVerification: true 
-      } 
+    navigate('/login', {
+      state: {
+        showResendVerification: true,
+      },
     });
   };
 
@@ -76,9 +76,7 @@ const VerifyEmailPage = (): JSX.Element => {
                 <Text variant="h2" mb="3">
                   Verifying Your Email
                 </Text>
-                <Text color="gray">
-                  Please wait while we verify your email address...
-                </Text>
+                <Text color="gray">Please wait while we verify your email address...</Text>
               </div>
             )}
 
@@ -94,11 +92,7 @@ const VerifyEmailPage = (): JSX.Element => {
                   {message}
                 </Text>
                 <div className="space-y-3">
-                  <Button
-                    variant="primary"
-                    onClick={() => navigate('/login')}
-                    className="w-full"
-                  >
+                  <Button variant="primary" onClick={() => navigate('/login')} className="w-full">
                     Go to Login
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -121,19 +115,11 @@ const VerifyEmailPage = (): JSX.Element => {
                   {message}
                 </Text>
                 <div className="space-y-3">
-                  <Button
-                    variant="primary"
-                    onClick={handleResendVerification}
-                    className="w-full"
-                  >
+                  <Button variant="primary" onClick={handleResendVerification} className="w-full">
                     <Mail className="w-4 h-4 mr-2" />
                     Request New Verification Email
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate('/signup')}
-                    className="w-full"
-                  >
+                  <Button variant="outline" onClick={() => navigate('/signup')} className="w-full">
                     Create New Account
                   </Button>
                 </div>
@@ -152,18 +138,10 @@ const VerifyEmailPage = (): JSX.Element => {
                   {message}
                 </Text>
                 <div className="space-y-3">
-                  <Button
-                    variant="primary"
-                    onClick={() => navigate('/login')}
-                    className="w-full"
-                  >
+                  <Button variant="primary" onClick={() => navigate('/login')} className="w-full">
                     Go to Login
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate('/signup')}
-                    className="w-full"
-                  >
+                  <Button variant="outline" onClick={() => navigate('/signup')} className="w-full">
                     Create Account
                   </Button>
                 </div>
@@ -175,11 +153,12 @@ const VerifyEmailPage = (): JSX.Element => {
           <div className="mt-8 text-center">
             <Text variant="body-sm" color="gray">
               Having trouble? Contact our support team at{' '}
-              <a 
-                href="mailto:support@pca-hijab.com" 
+              {/* TODO: confirm legal entity name/domain with product team */}
+              <a
+                href="mailto:support@mynoorai.com"
                 className="text-primary-600 hover:text-primary-700 font-medium"
               >
-                support@pca-hijab.com
+                support@mynoorai.com
               </a>
             </Text>
           </div>

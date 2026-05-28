@@ -71,7 +71,7 @@ class PerformanceMonitor {
 
         // Track CLS
         let clsValue = 0;
-        let clsEntries: PerformanceEntry[] = [];
+        const clsEntries: PerformanceEntry[] = [];
         const clsObserver = new PerformanceObserver((list) => {
           for (const entry of list.getEntries()) {
             if (!(entry as any).hadRecentInput) {

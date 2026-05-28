@@ -31,9 +31,9 @@ export const Header = ({
     // Track back button click
     trackEvent('button_click', {
       button_name: 'back',
-      page: 'header'
+      page: 'header',
     });
-    
+
     if (onBack) {
       onBack();
     } else {
@@ -45,19 +45,24 @@ export const Header = ({
     try {
       trackEvent('logout_click', {
         page: 'header',
-        user_email: user?.email
+        user_email: user?.email,
       });
-      
+
       await logout();
       toast.success('Signed out successfully');
       navigate('/');
-    } catch (error) {
+    } catch {
       toast.error('Failed to sign out');
     }
   };
 
   return (
-    <header className={cn('sticky top-0 z-50 bg-white/95 backdrop-blur-sm shadow-sm safe-top border-b border-gray-100', className)}>
+    <header
+      className={cn(
+        'sticky top-0 z-50 bg-white/95 backdrop-blur-sm shadow-sm safe-top border-b border-gray-100',
+        className,
+      )}
+    >
       <div className="max-w-2xl mx-auto px-4">
         <div className="flex items-center justify-between h-14 tablet:h-16">
           {/* Left section */}
@@ -88,9 +93,7 @@ export const Header = ({
             )}
             {/* 기본적으로 텍스트 대신 브랜드 로고를 노출하여 일관성을 유지 */}
             {title ? (
-              <h1 className="text-h4 tablet:text-h3 font-bold text-primary">
-                {title}
-              </h1>
+              <h1 className="text-h4 tablet:text-h3 font-bold text-primary">{title}</h1>
             ) : (
               <img
                 src={logoSignature}
@@ -103,11 +106,14 @@ export const Header = ({
           {/* Right section */}
           <div className="flex items-center space-x-2">
             {actions && actions.length > 0 && actions}
-            
+
             {/* Auth buttons */}
             {isAuthenticated ? (
               <div className="flex items-center space-x-2">
-                <Link to={ROUTES.MYPAGE} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+                <Link
+                  to={ROUTES.MYPAGE}
+                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                >
                   <User className="w-5 h-5 text-gray-700" />
                 </Link>
                 <button

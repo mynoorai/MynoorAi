@@ -7,8 +7,8 @@ describe('PersonalColorAPI', () => {
   describe('analyzeImage', () => {
     it('should successfully analyze an image', async () => {
       // 테스트용 이미지 파일 생성
-      const testFile = new File(['test image content'], 'test.jpg', { 
-        type: 'image/jpeg' 
+      const testFile = new File(['test image content'], 'test.jpg', {
+        type: 'image/jpeg',
       });
 
       // API 호출
@@ -34,12 +34,12 @@ describe('PersonalColorAPI', () => {
     it('should handle missing image error', async () => {
       // 에러 응답을 위한 커스텀 핸들러
       server.use(
-        http.post('/api/analyze', () => {
+        http.post('http://localhost:8000/analyze', () => {
           return HttpResponse.json(
             { status: 'error', message: 'An image file is required.' },
-            { status: 400 }
+            { status: 400 },
           );
-        })
+        }),
       );
 
       // 빈 파일로 테스트
@@ -51,12 +51,12 @@ describe('PersonalColorAPI', () => {
     it('should handle server errors', async () => {
       // 서버 에러 시뮬레이션
       server.use(
-        http.post('/api/analyze', () => {
+        http.post('http://localhost:8000/analyze', () => {
           return HttpResponse.json(
             { status: 'error', message: 'A server error occurred.' },
-            { status: 500 }
+            { status: 500 },
           );
-        })
+        }),
       );
 
       const testFile = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
@@ -67,9 +67,9 @@ describe('PersonalColorAPI', () => {
     it('should handle network errors', async () => {
       // 네트워크 에러 시뮬레이션
       server.use(
-        http.post('/api/analyze', () => {
+        http.post('http://localhost:8000/analyze', () => {
           return HttpResponse.error();
-        })
+        }),
       );
 
       const testFile = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
@@ -89,12 +89,12 @@ describe('PersonalColorAPI', () => {
     it('should handle health check failure', async () => {
       // 헬스체크 실패 시뮬레이션
       server.use(
-        http.get('/api/health', () => {
+        http.get('http://localhost:8000/health', () => {
           return HttpResponse.json(
             { status: 'error', message: 'Service unavailable' },
-            { status: 503 }
+            { status: 503 },
           );
-        })
+        }),
       );
 
       await expect(PersonalColorAPI.healthCheck()).rejects.toThrow();

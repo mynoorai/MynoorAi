@@ -115,12 +115,10 @@ apply_sql() {
 }
 
 SQL_DIR="/app/backend/sql"
-apply_sql "${SQL_DIR}/init-fixed.sql"
-apply_sql "${SQL_DIR}/add_session_columns_migration.sql"
-apply_sql "${SQL_DIR}/add_admin_features_migration.sql"
-apply_sql "${SQL_DIR}/add_user_roles_migration.sql"
-apply_sql "${SQL_DIR}/fix_verification_token_expiry.sql"
-apply_sql "${SQL_DIR}/products_contents_schema.sql"
+apply_sql "${SQL_DIR}/init.sql"
+for f in "${SQL_DIR}"/migrations/[0-9]*.sql; do
+  apply_sql "$f"
+done
 
 log "starting backend API on port ${PORT}"
 runuser -u node -- env PORT="${PORT}" NODE_ENV="${NODE_ENV}" DATABASE_URL="${DATABASE_URL}" \

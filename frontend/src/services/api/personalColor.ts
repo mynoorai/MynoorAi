@@ -1,49 +1,66 @@
-import axios from 'axios';
+import axios, { type AxiosError, type AxiosResponse } from 'axios';
 import type { PersonalColorResult } from '@/types';
-import { getAIApiUrl, shouldUseMockAI, getApiTimeout, debugApiConfig } from '@/utils/apiConfig';
+import { getAIApiUrl, getApiTimeout, debugApiConfig } from '@/utils/apiConfig';
+
+/**
+ * Error type for analysis failures, preserving original axios error and metadata.
+ */
+class PersonalColorAnalysisError extends Error {
+  originalError?: AxiosError;
+  errorType?: string;
+  response?: AxiosResponse;
+
+  constructor(
+    message: string,
+    options: { originalError?: AxiosError; errorType?: string; response?: AxiosResponse } = {},
+  ) {
+    super(message);
+    this.name = 'PersonalColorAnalysisError';
+    this.originalError = options.originalError;
+    this.errorType = options.errorType;
+    this.response = options.response;
+  }
+}
 
 export class PersonalColorAPI {
-  // Track last result to prevent consecutive duplicates
-  private static lastRandomResult: string | null = null;
-  
   /**
    * Compress image before upload for faster processing
    */
   private static async compressImage(file: File, maxSizeMB = 2): Promise<File> {
     const maxSizeBytes = maxSizeMB * 1024 * 1024;
-    
+
     // If file is already small enough, return as-is
     if (file.size <= maxSizeBytes) {
       return file;
     }
-    
+
     return new Promise((resolve, reject) => {
       const img = new Image();
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      
+
       const imageUrl = URL.createObjectURL(file);
-      
+
       img.onload = () => {
         // Clean up the object URL
         URL.revokeObjectURL(imageUrl);
-        
+
         // Calculate new dimensions maintaining aspect ratio
         let { width, height } = img;
         const maxDimension = 1920; // Max width/height for processing
-        
+
         if (width > maxDimension || height > maxDimension) {
           const ratio = Math.min(maxDimension / width, maxDimension / height);
           width *= ratio;
           height *= ratio;
         }
-        
+
         canvas.width = width;
         canvas.height = height;
-        
+
         // Draw and compress
         ctx?.drawImage(img, 0, 0, width, height);
-        
+
         canvas.toBlob(
           (blob) => {
             if (blob) {
@@ -51,96 +68,28 @@ export class PersonalColorAPI {
                 type: 'image/jpeg',
                 lastModified: Date.now(),
               });
-              console.log(`Image compressed: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(blob.size / 1024 / 1024).toFixed(2)}MB`);
+              console.log(
+                `Image compressed: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(blob.size / 1024 / 1024).toFixed(2)}MB`,
+              );
               resolve(compressedFile);
             } else {
               reject(new Error('Failed to compress image'));
             }
           },
           'image/jpeg',
-          0.85 // 85% quality
+          0.85, // 85% quality
         );
       };
-      
+
       img.onerror = () => {
         URL.revokeObjectURL(imageUrl);
         reject(new Error('Failed to load image'));
       };
-      
+
       img.src = imageUrl;
     });
   }
-  
-  /**
-   * Generate random personal color result for testing
-   */
-  private static generateRandomResult(): PersonalColorResult {
-    const seasons = [
-      { ko: '봄 웜톤', en: 'Spring Warm', tone: 'warm' as const },
-      { ko: '여름 쿨톤', en: 'Summer Cool', tone: 'cool' as const },
-      { ko: '가을 웜톤', en: 'Autumn Warm', tone: 'warm' as const },
-      { ko: '겨울 쿨톤', en: 'Winter Cool', tone: 'cool' as const }
-    ];
-    
-    // Filter out the last result to prevent consecutive duplicates
-    const availableSeasons = this.lastRandomResult 
-      ? seasons.filter(s => s.en !== this.lastRandomResult)
-      : seasons;
-    
-    const randomSeason = availableSeasons[Math.floor(Math.random() * availableSeasons.length)];
-    
-    // Store this result as the last one
-    this.lastRandomResult = randomSeason.en;
-    const confidence = 70 + Math.random() * 30; // 70-100 range
-    
-    // Generate random colors
-    const generateRandomColor = () => {
-      const r = Math.floor(Math.random() * 256);
-      const g = Math.floor(Math.random() * 256);
-      const b = Math.floor(Math.random() * 256);
-      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-    };
-    
-    const bestColors = Array.from({ length: 4 }, generateRandomColor);
-    const worstColors = Array.from({ length: 4 }, generateRandomColor);
-    
-    return {
-      personal_color: randomSeason.ko,
-      personal_color_en: randomSeason.en,
-      confidence: parseFloat(confidence.toFixed(1)),
-      best_colors: bestColors,
-      worst_colors: worstColors,
-      tone: randomSeason.tone,
-      tone_en: randomSeason.tone,
-      details: {
-        is_warm: randomSeason.tone === 'warm' ? Math.random() * 0.5 + 0.5 : Math.random() * 0.5,
-        skin_lab_b: Math.random() * 20 - 10,
-        eyebrow_lab_b: Math.random() * 20 - 10,
-        eye_lab_b: Math.random() * 20 - 10,
-        skin_hsv_s: Math.random(),
-        eyebrow_hsv_s: Math.random(),
-        eye_hsv_s: Math.random()
-      },
-      facial_colors: {
-        cheek: {
-          rgb: [Math.floor(Math.random() * 256), Math.floor(Math.random() * 256), Math.floor(Math.random() * 256)] as [number, number, number],
-          lab: [Math.random() * 100, Math.random() * 200 - 100, Math.random() * 200 - 100] as [number, number, number],
-          hsv: [Math.random() * 360, Math.random(), Math.random()] as [number, number, number]
-        },
-        eyebrow: {
-          rgb: [Math.floor(Math.random() * 256), Math.floor(Math.random() * 256), Math.floor(Math.random() * 256)] as [number, number, number],
-          lab: [Math.random() * 100, Math.random() * 200 - 100, Math.random() * 200 - 100] as [number, number, number],
-          hsv: [Math.random() * 360, Math.random(), Math.random()] as [number, number, number]
-        },
-        eye: {
-          rgb: [Math.floor(Math.random() * 256), Math.floor(Math.random() * 256), Math.floor(Math.random() * 256)] as [number, number, number],
-          lab: [Math.random() * 100, Math.random() * 200 - 100, Math.random() * 200 - 100] as [number, number, number],
-          hsv: [Math.random() * 360, Math.random(), Math.random()] as [number, number, number]
-        }
-      }
-    };
-  }
-  
+
   /**
    * Analyzes an image to determine personal color
    * @param file - Image file to analyze
@@ -153,28 +102,10 @@ export class PersonalColorAPI {
     debug = false,
     retryCount = 0,
   ): Promise<PersonalColorResult> {
-    // Toggle for testing: set to true to use random results
-    const USE_RANDOM_RESULT = false;
-    
-    if (USE_RANDOM_RESULT) {
-      // Simulate processing delay for realistic UX
-      await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000)); // 2-5 seconds
-      
-      const randomResult = this.generateRandomResult();
-      
-      if (import.meta.env.DEV) {
-        console.log('Generated random result:', randomResult);
-      }
-      
-      return randomResult;
-    }
-    
-    // Get dynamic configuration (keeping original code for future use)
     const aiApiUrl = getAIApiUrl();
-    const useMockAI = shouldUseMockAI();
     const fileSizeMB = file.size / (1024 * 1024);
     const apiTimeout = getApiTimeout(fileSizeMB);
-    
+
     // Debug logging only in development
     if (import.meta.env.DEV) {
       console.log('analyzeImage called with:', {
@@ -183,30 +114,23 @@ export class PersonalColorAPI {
         fileSizeMB: fileSizeMB.toFixed(2) + 'MB',
         fileType: file.type,
         aiApiUrl,
-        useMockAI,
         apiTimeout: apiTimeout + 'ms',
         debug,
         retryCount,
       });
-      
+
       // Extra debug on first call
       if (retryCount === 0) {
         debugApiConfig();
       }
     }
-    
+
     // Compress image if needed for faster upload and processing
     const processedFile = await this.compressImage(file, 2); // Max 2MB
-    
+
     const formData = new FormData();
     formData.append('file', processedFile);
 
-    // Check if we should use mock AI (using dynamic config)
-    if (useMockAI) {
-      console.warn('⚠️ Mock AI mode is enabled but not implemented');
-      throw new Error('Mock mode is not implemented. Please configure the AI API URL.');
-    }
-    
     // Validate AI API URL
     if (!aiApiUrl) {
       throw new Error('AI API URL is not configured. Please check your environment variables.');
@@ -240,7 +164,7 @@ export class PersonalColorAPI {
       if (import.meta.env.DEV) {
         console.error('API call failed:', error);
       }
-      
+
       if (axios.isAxiosError(error)) {
         if (import.meta.env.DEV) {
           console.error('Axios error details:', {
@@ -250,32 +174,36 @@ export class PersonalColorAPI {
             status: error.response?.status,
           });
         }
-        
+
         // Handle timeout with retry
         if (error.code === 'ECONNABORTED' && retryCount < 1) {
           if (import.meta.env.DEV) {
             console.log('Timeout occurred, retrying...');
           }
           // Wait 2 seconds before retry
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await new Promise((resolve) => setTimeout(resolve, 2000));
           return this.analyzeImage(file, debug, retryCount + 1);
         }
-        
+
         // Preserve original error for better categorization, but provide Korean fallbacks
         if (error.code === 'ECONNABORTED') {
           const timeoutSeconds = Math.round(apiTimeout / 1000);
-          const timeoutError = new Error(`The analysis took longer than ${timeoutSeconds} seconds. Please try a smaller or different image.`);
+          const timeoutError = new Error(
+            `The analysis took longer than ${timeoutSeconds} seconds. Please try a smaller or different image.`,
+          );
           (timeoutError as any).originalError = error;
           (timeoutError as any).errorType = 'timeout';
           throw timeoutError;
         }
         if (error.code === 'ECONNREFUSED') {
-          const connectionError = new Error('Unable to reach the AI analysis service. Please try again shortly.');
+          const connectionError = new Error(
+            'Unable to reach the AI analysis service. Please try again shortly.',
+          );
           (connectionError as any).originalError = error;
           (connectionError as any).errorType = 'connection_refused';
           throw connectionError;
         }
-        
+
         // For API errors with response data, preserve the original response
         if (error.response?.status === 500) {
           const serverError = new Error('A server error occurred. Please try again later.');
@@ -284,23 +212,31 @@ export class PersonalColorAPI {
           throw serverError;
         }
         if (error.response?.status === 413) {
-          const fileSizeError = new Error('The file is too large. Please upload an image smaller than 10MB.');
+          const fileSizeError = new Error(
+            'The file is too large. Please upload an image smaller than 10MB.',
+          );
           (fileSizeError as any).response = error.response;
           (fileSizeError as any).originalError = error;
           throw fileSizeError;
         }
-        
+
         // For other API errors, preserve the response data
         if (error.response) {
-          const apiError = new Error(error.response.data?.message || error.response.data?.error || `API Error: ${error.response.status}`);
+          const apiError = new Error(
+            error.response.data?.message ||
+              error.response.data?.error ||
+              `API Error: ${error.response.status}`,
+          );
           (apiError as any).response = error.response;
           (apiError as any).originalError = error;
           throw apiError;
         }
       }
-      
+
       // Re-throw with more context
-      throw new Error(`Image analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Image analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
@@ -310,17 +246,12 @@ export class PersonalColorAPI {
    */
   static async healthCheck(): Promise<{ status: string; service: string }> {
     const aiApiUrl = getAIApiUrl();
-    const useMockAI = shouldUseMockAI();
-    
-    if (useMockAI) {
-      return { status: 'ok', service: 'mock-ai' };
-    }
 
     const aiApiClient = axios.create({
       baseURL: aiApiUrl,
       timeout: 5000,
     });
-    
+
     const response = await aiApiClient.get<{ status: string; service: string }>('/health');
     return response.data;
   }

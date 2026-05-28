@@ -12,7 +12,7 @@ const MyPage = (): JSX.Element => {
   const navigate = useNavigate();
   const { instagramId, sessionId } = useAppStore();
   const { isAuthenticated, user, checkAuth } = useAuthStore();
-  
+
   // 사용자 정보가 메모리에 없으면 로드(페이지 새로고침 등)
   useEffect(() => {
     if (isAuthenticated && !user) {
@@ -20,18 +20,17 @@ const MyPage = (): JSX.Element => {
     }
   }, [isAuthenticated, user, checkAuth]);
 
-  // DEMO MODE: Authentication check disabled
   // Redirect if not authenticated
-  // useEffect(() => {
-  //   if (!isAuthenticated) {
-  //     trackEvent('mypage_auth_redirect', {
-  //       from: 'mypage',
-  //       reason: 'not_authenticated'
-  //     });
-  //     navigate('/login', { state: { from: { pathname: '/mypage' } } });
-  //   }
-  // }, [isAuthenticated, navigate]);
-  
+  useEffect(() => {
+    if (!isAuthenticated) {
+      trackEvent('mypage_auth_redirect', {
+        from: 'mypage',
+        reason: 'not_authenticated',
+      });
+      navigate('/login', { state: { from: { pathname: '/mypage' } } });
+    }
+  }, [isAuthenticated, navigate]);
+
   return (
     <PageLayout showDefaultHeader>
       <div className="max-w-7xl mx-auto w-full">
@@ -51,31 +50,39 @@ const MyPage = (): JSX.Element => {
             )}
           </div>
         </div>
-        
+
         {/* Main Content */}
         <div className="space-y-6">
           {/* Personal Color Section */}
           <PersonalColorSection />
-          
+
           {/* Products Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Recently Viewed Products */}
             <ViewedProducts />
-            
+
             {/* Saved Products */}
             <SavedProducts />
           </div>
-          
+
           {/* Additional Features (Future) */}
           <div className="bg-gray-50 rounded-xl p-6 text-center">
             <Text variant="body-sm" color="gray" mb="2">
               More features are coming soon!
             </Text>
             <div className="flex justify-center gap-4">
-              <Text variant="caption" color="gray">• Order History</Text>
-              <Text variant="caption" color="gray">• Review Management</Text>
-              <Text variant="caption" color="gray">• Notification Settings</Text>
-              <Text variant="caption" color="gray">• Profile Editing</Text>
+              <Text variant="caption" color="gray">
+                • Order History
+              </Text>
+              <Text variant="caption" color="gray">
+                • Review Management
+              </Text>
+              <Text variant="caption" color="gray">
+                • Notification Settings
+              </Text>
+              <Text variant="caption" color="gray">
+                • Profile Editing
+              </Text>
             </div>
           </div>
         </div>

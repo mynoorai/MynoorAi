@@ -1,14 +1,15 @@
 // Google Analytics 4 Event Tracking Utilities - Complete Implementation
 import { VercelAnalytics, trackVercelEvent } from './vercelAnalytics';
+import { devLog } from '@/utils/devLog';
 
 declare global {
   interface Window {
     gtag: (
       command: 'config' | 'event' | 'js' | 'set' | 'consent',
       targetId: string,
-      config?: Record<string, any>
+      config?: Record<string, unknown>,
     ) => void;
-    dataLayer: any[];
+    dataLayer: unknown[];
   }
 }
 
@@ -23,14 +24,14 @@ export const initializeGA4 = (): void => {
       analytics_storage: 'granted',
       ad_storage: 'denied',
       ad_user_data: 'denied',
-      ad_personalization: 'denied'
+      ad_personalization: 'denied',
     });
 
     // Enhanced config with conditional debug mode
-    const config: Record<string, any> = {
+    const config: Record<string, unknown> = {
       send_page_view: false,
       allow_google_signals: true,
-      cookie_flags: 'SameSite=None;Secure'
+      cookie_flags: 'SameSite=None;Secure',
     };
 
     // Add debug_mode only in development (not false, just omit it in production)
@@ -43,14 +44,14 @@ export const initializeGA4 = (): void => {
     // Set custom dimensions
     window.gtag('set', {
       custom_map: {
-        'custom_parameter_1': 'personal_color_type',
-        'custom_parameter_2': 'user_flow_step',
-        'custom_parameter_3': 'processing_time_ms',
-        'custom_parameter_4': 'confidence_score'
-      }
+        custom_parameter_1: 'personal_color_type',
+        custom_parameter_2: 'user_flow_step',
+        custom_parameter_3: 'processing_time_ms',
+        custom_parameter_4: 'confidence_score',
+      },
     });
 
-    console.log('[GA4] Initialized with ID:', GA_MEASUREMENT_ID);
+    devLog.log('[GA4] Initialized with ID:', GA_MEASUREMENT_ID);
   }
 };
 
@@ -61,7 +62,7 @@ export const trackPageView = (path: string, title?: string): void => {
       page_location: window.location.href,
       page_path: path,
       page_title: title || document.title,
-      engagement_time_msec: 100
+      engagement_time_msec: 100,
     });
 
     // Also track with Vercel Analytics
@@ -72,26 +73,23 @@ export const trackPageView = (path: string, title?: string): void => {
 };
 
 // Core event tracking function with error handling and conditional debug mode
-export const trackEvent = (
-  eventName: string,
-  parameters?: Record<string, any>
-): void => {
+export const trackEvent = (eventName: string, parameters?: Record<string, unknown>): void => {
   try {
     if (typeof window.gtag !== 'undefined') {
       const eventParams = {
         ...parameters,
         timestamp: new Date().toISOString(),
         user_agent: navigator.userAgent,
-        screen_resolution: `${screen.width}x${screen.height}`
+        screen_resolution: `${screen.width}x${screen.height}`,
       };
 
       // Add debug mode in development
       const finalParams = addDebugMode(eventParams);
-      
+
       window.gtag('event', eventName, finalParams);
 
       if (import.meta.env.DEV) {
-        console.log(`[GA4 Event] ${eventName}:`, finalParams);
+        devLog.log(`[GA4 Event] ${eventName}:`, finalParams);
       }
     }
   } catch (error) {
@@ -111,7 +109,7 @@ export const trackSessionStart = (instagramId?: string): void => {
     instagram_id: instagramId || 'anonymous',
     user_flow_step: 'session_start',
     session_id: `session_${Date.now()}`,
-    device_type: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
+    device_type: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
   });
 
   // Vercel Analytics tracking
@@ -119,16 +117,21 @@ export const trackSessionStart = (instagramId?: string): void => {
 };
 
 // 2. IMAGE UPLOAD TRACKING
-export const trackImageUpload = (success: boolean, fileSize?: number, fileType?: string, errorReason?: string): void => {
+export const trackImageUpload = (
+  success: boolean,
+  fileSize?: number,
+  fileType?: string,
+  errorReason?: string,
+): void => {
   // GA4 tracking
   trackEvent('image_upload', {
     event_category: 'user_action',
     success: success,
-    file_size_mb: fileSize ? Math.round(fileSize / (1024 * 1024) * 100) / 100 : undefined,
+    file_size_mb: fileSize ? Math.round((fileSize / (1024 * 1024)) * 100) / 100 : undefined,
     file_type: fileType,
     error_reason: success ? undefined : errorReason,
     user_flow_step: 'image_upload',
-    upload_method: 'drag_drop_or_click'
+    upload_method: 'drag_drop_or_click',
   });
 
   // Vercel Analytics tracking
@@ -156,7 +159,7 @@ export const trackAIAnalysis = (result: {
     processing_time_ms: result.processingTime || 0,
     analysis_id: result.analysisId,
     user_flow_step: 'analysis_complete',
-    analysis_quality: result.confidence > 0.8 ? 'high' : result.confidence > 0.6 ? 'medium' : 'low'
+    analysis_quality: result.confidence > 0.8 ? 'high' : result.confidence > 0.6 ? 'medium' : 'low',
   });
 
   // Vercel Analytics tracking
@@ -165,7 +168,7 @@ export const trackAIAnalysis = (result: {
     season: result.season,
     tone: result.tone,
     confidence: result.confidence,
-    processingTime: result.processingTime || 0
+    processingTime: result.processingTime || 0,
   });
 };
 
@@ -185,21 +188,25 @@ export const trackPreferenceSubmit = (preferences: {
     material_count: preferences.material?.length || 0,
     occasion_count: preferences.occasion?.length || 0,
     user_flow_step: 'preferences_submit',
-    total_selections: (preferences.style?.length || 0) + 
-                     (preferences.fitStyle?.length || 0) + 
-                     (preferences.material?.length || 0) + 
-                     (preferences.occasion?.length || 0)
+    total_selections:
+      (preferences.style?.length || 0) +
+      (preferences.fitStyle?.length || 0) +
+      (preferences.material?.length || 0) +
+      (preferences.occasion?.length || 0),
   });
 };
 
 // 5. RECOMMENDATION REQUEST TRACKING
-export const trackRecommendationRequest = (_instagramId: string, personalColorType: string): void => {
+export const trackRecommendationRequest = (
+  _instagramId: string,
+  personalColorType: string,
+): void => {
   // GA4 tracking
   trackEvent('recommendation_request', {
     event_category: 'conversion',
     personal_color_type: personalColorType,
     user_flow_step: 'recommendation_request',
-    value: 1  // Conversion value
+    value: 1, // Conversion value
   });
 
   // Vercel Analytics tracking
@@ -207,14 +214,17 @@ export const trackRecommendationRequest = (_instagramId: string, personalColorTy
 };
 
 // 6. RESULT DOWNLOAD/SHARE TRACKING
-export const trackResultDownload = (personalColor: string, downloadType: 'image' | 'pdf' = 'image'): void => {
+export const trackResultDownload = (
+  personalColor: string,
+  downloadType: 'image' | 'pdf' = 'image',
+): void => {
   // GA4 tracking
   trackEvent('result_download', {
     event_category: 'engagement',
     personal_color: personalColor,
     download_type: downloadType,
     user_flow_step: 'result_download',
-    value: 1
+    value: 1,
   });
 
   // Vercel Analytics tracking
@@ -229,7 +239,7 @@ export const trackFlowCompletion = (_instagramId?: string, personalColor?: strin
     personal_color: personalColor,
     user_flow_step: 'flow_complete',
     value: 2,
-    currency: 'USD'
+    currency: 'USD',
   });
 };
 
@@ -239,7 +249,7 @@ export const trackDropOff = (step: string, reason?: string): void => {
     event_category: 'user_behavior',
     drop_off_step: step,
     drop_off_reason: reason,
-    user_flow_step: step
+    user_flow_step: step,
   });
 };
 
@@ -250,7 +260,7 @@ export const trackError = (errorType: string, errorMessage: string, errorStep: s
     error_type: errorType,
     error_message: errorMessage,
     error_step: errorStep,
-    user_flow_step: errorStep
+    user_flow_step: errorStep,
   });
 };
 
@@ -261,7 +271,7 @@ export const trackPerformance = (metric: string, value: number, step: string): v
     metric_name: metric,
     metric_value: Math.round(value),
     performance_step: step,
-    user_flow_step: step
+    user_flow_step: step,
   });
 };
 
@@ -271,7 +281,7 @@ export const trackEngagement = (action: string, target: string, duration?: numbe
     event_category: 'engagement',
     engagement_action: action,
     engagement_target: target,
-    engagement_duration: duration ? Math.round(duration) : undefined
+    engagement_duration: duration ? Math.round(duration) : undefined,
   });
 };
 
@@ -281,7 +291,7 @@ export const trackScrollDepth = (depth: number, page: string): void => {
     event_category: 'engagement',
     scroll_depth_percent: depth,
     page_path: page,
-    user_flow_step: 'content_engagement'
+    user_flow_step: 'content_engagement',
   });
 };
 
@@ -289,19 +299,19 @@ export const trackScrollDepth = (depth: number, page: string): void => {
 // SCROLL DEPTH TRACKING UTILITY
 // ============================================================================
 
-let scrollDepthMarkers: Set<number> = new Set();
+const scrollDepthMarkers: Set<number> = new Set();
 
 export const initializeScrollTracking = (pagePath: string): void => {
   scrollDepthMarkers.clear();
-  
+
   const handleScroll = (): void => {
     const scrollPercent = Math.round(
-      ((window.scrollY + window.innerHeight) / document.documentElement.scrollHeight) * 100
+      ((window.scrollY + window.innerHeight) / document.documentElement.scrollHeight) * 100,
     );
 
     // Track at 25%, 50%, 75%, 90% marks
     const markers = [25, 50, 75, 90];
-    markers.forEach(marker => {
+    markers.forEach((marker) => {
       if (scrollPercent >= marker && !scrollDepthMarkers.has(marker)) {
         scrollDepthMarkers.add(marker);
         trackScrollDepth(marker, pagePath);
@@ -310,7 +320,7 @@ export const initializeScrollTracking = (pagePath: string): void => {
   };
 
   window.addEventListener('scroll', handleScroll, { passive: true });
-  
+
   // Cleanup function
   return () => {
     window.removeEventListener('scroll', handleScroll);
@@ -324,11 +334,16 @@ export const initializeScrollTracking = (pagePath: string): void => {
 
 export const debugGA4 = (): void => {
   if (typeof window.gtag !== 'undefined') {
-    console.log('[GA4 Debug] DataLayer:', window.dataLayer);
-    console.log('[GA4 Debug] Measurement ID:', GA_MEASUREMENT_ID);
-    console.log('[GA4 Debug] Environment:', import.meta.env.DEV ? 'Development' : 'Production');
-    console.log('[GA4 Debug] Debug Mode:', import.meta.env.DEV || import.meta.env.VITE_GA4_DEBUG_MODE === 'true' ? 'Enabled' : 'Disabled');
-    console.log('[GA4 Debug] Last 5 DataLayer Events:', window.dataLayer?.slice(-5));
+    devLog.log('[GA4 Debug] DataLayer:', window.dataLayer);
+    devLog.log('[GA4 Debug] Measurement ID:', GA_MEASUREMENT_ID);
+    devLog.log('[GA4 Debug] Environment:', import.meta.env.DEV ? 'Development' : 'Production');
+    devLog.log(
+      '[GA4 Debug] Debug Mode:',
+      import.meta.env.DEV || import.meta.env.VITE_GA4_DEBUG_MODE === 'true'
+        ? 'Enabled'
+        : 'Disabled',
+    );
+    devLog.log('[GA4 Debug] Last 5 DataLayer Events:', window.dataLayer?.slice(-5));
   }
 };
 
@@ -339,28 +354,28 @@ export const sendTestEvent = (): void => {
       event_category: 'debug',
       test_parameter: 'test_value',
       timestamp: Date.now(),
-      debug_mode: true
+      debug_mode: true,
     });
-    console.log('[GA4 Debug] Test event sent');
+    devLog.log('[GA4 Debug] Test event sent');
   }
 };
 
 // Function to enable debug mode for specific events
-export const trackDebugEvent = (eventName: string, parameters: Record<string, any>): void => {
+export const trackDebugEvent = (eventName: string, parameters: Record<string, unknown>): void => {
   if (typeof window.gtag !== 'undefined') {
     window.gtag('event', eventName, { ...parameters, debug_mode: true });
-    console.log(`[GA4 Debug Event] ${eventName}:`, parameters);
+    devLog.log(`[GA4 Debug Event] ${eventName}:`, parameters);
   }
 };
 
 // Helper function to add debug mode to events in development or when forced
-const addDebugMode = (params: Record<string, any>): Record<string, any> => {
+const addDebugMode = (params: Record<string, unknown>): Record<string, unknown> => {
   // Enable debug mode for: development, forced via env, or special query parameter
-  const shouldDebug = 
-    import.meta.env.DEV || 
+  const shouldDebug =
+    import.meta.env.DEV ||
     import.meta.env.VITE_GA4_DEBUG_MODE === 'true' ||
     window.location.search.includes('ga_debug=1');
-    
+
   if (shouldDebug) {
     return { ...params, debug_mode: true };
   }
@@ -368,14 +383,17 @@ const addDebugMode = (params: Record<string, any>): Record<string, any> => {
 };
 
 // Enhanced event tracking with debug mode for critical events
-export const trackCriticalEvent = (eventName: string, parameters: Record<string, any>): void => {
+export const trackCriticalEvent = (
+  eventName: string,
+  parameters: Record<string, unknown>,
+): void => {
   if (typeof window.gtag !== 'undefined') {
     // Always add debug mode for critical events (even in production for important tracking)
     const debugParams = { ...parameters, debug_mode: true };
     window.gtag('event', eventName, debugParams);
 
     if (import.meta.env.DEV) {
-      console.log(`[GA4 Critical Event] ${eventName}:`, debugParams);
+      devLog.log(`[GA4 Critical Event] ${eventName}:`, debugParams);
     }
   }
 

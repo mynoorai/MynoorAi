@@ -1,4 +1,4 @@
-export type UserRole = 'user' | 'admin' | 'content_manager';
+export type UserRole = "user" | "admin" | "content_manager";
 
 export interface User {
   id: string;
@@ -35,24 +35,24 @@ export interface Session {
   updatedAt?: Date;
 }
 
-export type JourneyStatus = 
-  | 'just_started'
-  | 'diagnosis_pending'
-  | 'diagnosis_done'
-  | 'offer_sent'
-  | 'recommendation_requested'
-  | 'recommendation_processing'
-  | 'recommendation_completed'
-  | 'inactive';
+export type JourneyStatus =
+  | "just_started"
+  | "diagnosis_pending"
+  | "diagnosis_done"
+  | "offer_sent"
+  | "recommendation_requested"
+  | "recommendation_processing"
+  | "recommendation_completed"
+  | "inactive";
 
-export type Priority = 'urgent' | 'high' | 'medium' | 'low';
+export type Priority = "urgent" | "high" | "medium" | "low";
 
 export interface PersonalColorResult {
   personal_color: string;
-  personal_color_en: 'spring' | 'summer' | 'autumn' | 'winter';
+  personal_color_en: "spring" | "summer" | "autumn" | "winter";
   personal_color_ko?: string;
   tone: string;
-  tone_en: 'warm' | 'cool';
+  tone_en: "warm" | "cool";
   details: {
     is_warm: number;
     skin_lab_b: number;
@@ -84,6 +84,12 @@ export interface UserPreferences {
   additionalNotes: string;
 }
 
+export type RecommendationStatus =
+  | "pending"
+  | "processing"
+  | "completed"
+  | "failed";
+
 export interface Recommendation {
   id: string;
   sessionId: string;
@@ -92,7 +98,9 @@ export interface Recommendation {
   personalColorResult: PersonalColorResult;
   userPreferences: UserPreferences;
   uploadedImageUrl?: string;
-  status: 'pending' | 'processing' | 'completed';
+  productIds: string[];
+  status: RecommendationStatus;
+  completedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -110,8 +118,12 @@ export interface RefreshToken {
   createdAt: Date;
 }
 
-export type ProductCategory = 'hijab' | 'lens' | 'lip' | 'blush';
-export type PersonalColorType = 'spring_warm' | 'autumn_warm' | 'summer_cool' | 'winter_cool';
+export type ProductCategory = "hijab" | "lens" | "lip" | "blush";
+export type PersonalColorType =
+  | "spring_warm"
+  | "autumn_warm"
+  | "summer_cool"
+  | "winter_cool";
 
 export interface Product {
   id: string;
@@ -128,8 +140,13 @@ export interface Product {
   updatedAt: Date;
 }
 
-export type ContentCategory = 'beauty_tips' | 'hijab_styling' | 'color_guide' | 'trend' | 'tutorial';
-export type ContentStatus = 'draft' | 'published';
+export type ContentCategory =
+  | "beauty_tips"
+  | "hijab_styling"
+  | "color_guide"
+  | "trend"
+  | "tutorial";
+export type ContentStatus = "draft" | "published";
 
 export interface Content {
   id: string;

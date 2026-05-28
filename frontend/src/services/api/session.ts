@@ -1,7 +1,7 @@
 import { apiClient } from './client';
 import { getInstagramClient, shouldUseInstagramClient } from './instagramClient';
 import type { PersonalColorResult } from '@/types';
-import { secureLog, secureWarn } from '@/utils/secureLogging';
+import { secureWarn } from '@/utils/secureLogging';
 
 export interface SessionResponse {
   success: boolean;
@@ -36,16 +36,17 @@ export class SessionAPI {
     // Use Instagram-optimized client if detected
     const client = shouldUseInstagramClient() ? getInstagramClient() : apiClient;
     const isInstagram = shouldUseInstagramClient();
-    
+
     if (isInstagram) {
       console.log('📱 [SessionAPI] Using Instagram-optimized client (5s timeout, no retries)');
     }
-    
+
     // No retry for Instagram browser - fail fast
     if (isInstagram) {
       try {
-        const response = await client.post<SessionResponse>('/sessions', 
-          instagramId ? { instagramId } : {}
+        const response = await client.post<SessionResponse>(
+          '/sessions',
+          instagramId ? { instagramId } : {},
         );
         return response.data;
       } catch (error) {
@@ -53,11 +54,12 @@ export class SessionAPI {
         throw error;
       }
     }
-    
+
     // Regular browsers can handle cold starts with proper retries
     try {
-      const response = await client.post<SessionResponse>('/sessions', 
-        instagramId ? { instagramId } : {}
+      const response = await client.post<SessionResponse>(
+        '/sessions',
+        instagramId ? { instagramId } : {},
       );
       return response.data;
     } catch (error) {
@@ -89,7 +91,7 @@ export class SessionAPI {
    */
   static async updateSession(
     sessionId: string,
-    updateData: SessionUpdateData
+    updateData: SessionUpdateData,
   ): Promise<{
     success: boolean;
     data: SessionDetails;

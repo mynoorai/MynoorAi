@@ -1,7 +1,8 @@
 import { track } from '@vercel/analytics';
 
 // Vercel Analytics용 커스텀 이벤트 추적
-export const trackVercelEvent = (eventName: string, properties?: Record<string, any>) => {
+type VercelEventProperties = Record<string, string | number | boolean | null>;
+export const trackVercelEvent = (eventName: string, properties?: VercelEventProperties) => {
   track(eventName, properties);
 };
 
@@ -11,7 +12,7 @@ export const VercelAnalytics = {
   sessionStart: (instagramId: string) => {
     track('session_start', {
       instagram_id: instagramId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   },
 
@@ -20,14 +21,14 @@ export const VercelAnalytics = {
     track('image_upload', {
       file_size: fileSize,
       file_type: fileType,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   },
 
   // AI 분석 시작
   analysisStart: () => {
     track('analysis_start', {
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   },
 
@@ -45,7 +46,7 @@ export const VercelAnalytics = {
       tone: result.tone,
       confidence: result.confidence,
       processing_time: result.processingTime,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   },
 
@@ -53,7 +54,7 @@ export const VercelAnalytics = {
   resultShare: (shareMethod: string) => {
     track('result_share', {
       share_method: shareMethod,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   },
 
@@ -62,7 +63,7 @@ export const VercelAnalytics = {
     track('recommendation_request', {
       instagram_id: instagramId,
       personal_color_type: personalColorType,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   },
 
@@ -71,7 +72,7 @@ export const VercelAnalytics = {
     track('page_time_spent', {
       page: page,
       time_spent: timeSpent,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   },
 
@@ -81,7 +82,7 @@ export const VercelAnalytics = {
       error_type: errorType,
       error_message: errorMessage,
       page: page,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   },
 
@@ -91,9 +92,9 @@ export const VercelAnalytics = {
       action: action,
       element: element,
       page: page,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-  }
+  },
 };
 
 export default VercelAnalytics;

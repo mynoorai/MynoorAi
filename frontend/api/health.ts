@@ -1,5 +1,3 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
 /**
  * Edge Function for health check and backend pre-warming
  * This runs on Vercel Edge Network with minimal cold start
@@ -50,10 +48,10 @@ export default async function handler(req: Request) {
             // Use AbortSignal for timeout
             signal: AbortSignal.timeout(10000),
           });
-          
+
           const endTime = Date.now();
           const responseTime = endTime - startTime;
-          
+
           return {
             url: backendUrl,
             status: response.ok ? 'warm' : 'error',
@@ -69,7 +67,7 @@ export default async function handler(req: Request) {
             error: error instanceof Error ? error.message : 'Unknown error',
           };
         }
-      })
+      }),
     );
 
     return new Response(
@@ -78,12 +76,14 @@ export default async function handler(req: Request) {
         service: 'edge-health',
         timestamp: new Date().toISOString(),
         prewarm: true,
-        backends: warmupResults.map(r => r.status === 'fulfilled' ? r.value : { status: 'error', reason: r.reason }),
+        backends: warmupResults.map((r) =>
+          r.status === 'fulfilled' ? r.value : { status: 'error', reason: r.reason },
+        ),
       }),
       {
         status: 200,
         headers,
-      }
+      },
     );
   }
 
@@ -99,6 +99,6 @@ export default async function handler(req: Request) {
     {
       status: 200,
       headers,
-    }
+    },
   );
 }

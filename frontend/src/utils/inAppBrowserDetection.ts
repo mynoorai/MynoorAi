@@ -1,7 +1,7 @@
 /**
  * In-App Browser Detection and Optimization
  * Detects and optimizes for Instagram, Facebook, and other in-app browsers
- * 
+ *
  * Technical Architecture:
  * - iOS: WKWebView (Safari WebKit engine)
  * - Android: Android System WebView (Chrome-based)
@@ -9,7 +9,19 @@
 
 interface InAppBrowserInfo {
   isInAppBrowser: boolean;
-  browserName: 'instagram' | 'facebook' | 'messenger' | 'twitter' | 'linkedin' | 'tiktok' | 'kakaotalk' | 'line' | 'wechat' | 'snapchat' | 'unknown' | null;
+  browserName:
+    | 'instagram'
+    | 'facebook'
+    | 'messenger'
+    | 'twitter'
+    | 'linkedin'
+    | 'tiktok'
+    | 'kakaotalk'
+    | 'line'
+    | 'wechat'
+    | 'snapchat'
+    | 'unknown'
+    | null;
   platform: 'ios' | 'android' | 'unknown';
   version?: string;
   deviceInfo?: {
@@ -34,13 +46,13 @@ interface InAppBrowserInfo {
  */
 function parseInstagramUA(ua: string): Partial<InAppBrowserInfo['deviceInfo']> {
   const info: Partial<InAppBrowserInfo['deviceInfo']> = {};
-  
+
   // Extract Instagram version
   const versionMatch = ua.match(/Instagram\s+([\d.]+)/);
   if (versionMatch) {
     info.osVersion = versionMatch[1];
   }
-  
+
   // iOS specific parsing
   if (ua.includes('iPhone') || ua.includes('iPad')) {
     // Extract device model (e.g., iPhone12,1)
@@ -48,20 +60,20 @@ function parseInstagramUA(ua: string): Partial<InAppBrowserInfo['deviceInfo']> {
     if (modelMatch) {
       info.model = modelMatch[1];
     }
-    
+
     // Extract iOS version
     const iosMatch = ua.match(/iOS\s+([\d_]+)/);
     if (iosMatch) {
       info.osVersion = `iOS ${iosMatch[1].replace(/_/g, '.')}`;
     }
-    
+
     // Extract screen resolution
     const resMatch = ua.match(/(\d+x\d+)/);
     if (resMatch) {
       info.screenResolution = resMatch[1];
     }
   }
-  
+
   // Android specific parsing
   if (ua.includes('Android')) {
     // Extract Android version
@@ -69,20 +81,20 @@ function parseInstagramUA(ua: string): Partial<InAppBrowserInfo['deviceInfo']> {
     if (androidMatch) {
       info.osVersion = `Android ${androidMatch[1]}`;
     }
-    
+
     // Extract device model
     const modelMatch = ua.match(/;\s+([^;]+)\s*\)/);
     if (modelMatch) {
       info.model = modelMatch[1].trim();
     }
-    
+
     // Extract screen resolution
     const resMatch = ua.match(/(\d+x\d+)/);
     if (resMatch) {
       info.screenResolution = resMatch[1];
     }
   }
-  
+
   return info;
 }
 
@@ -92,8 +104,8 @@ function parseInstagramUA(ua: string): Partial<InAppBrowserInfo['deviceInfo']> {
 export function detectInAppBrowser(): InAppBrowserInfo {
   const ua = navigator.userAgent;
   const platform = /iPhone|iPad|iPod/.test(ua) ? 'ios' : /Android/.test(ua) ? 'android' : 'unknown';
-  
-  let info: InAppBrowserInfo = {
+
+  const info: InAppBrowserInfo = {
     isInAppBrowser: false,
     browserName: null,
     platform,
@@ -104,21 +116,21 @@ export function detectInAppBrowser(): InAppBrowserInfo {
       camera: false,
       cookies: false,
       performance: false,
-    }
+    },
   };
-  
+
   // Instagram detection (most important for this app)
   if (ua.includes('Instagram')) {
     info.isInAppBrowser = true;
     info.browserName = 'instagram';
     info.deviceInfo = parseInstagramUA(ua);
-    
+
     // Extract Instagram app version
     const versionMatch = ua.match(/Instagram\s+([\d.]+)/);
     if (versionMatch) {
       info.version = versionMatch[1];
     }
-    
+
     // Instagram-specific limitations
     info.limitations = {
       localStorage: platform === 'ios', // iOS WKWebView has localStorage issues
@@ -133,12 +145,12 @@ export function detectInAppBrowser(): InAppBrowserInfo {
   else if (ua.includes('FBAN') || ua.includes('FBAV')) {
     info.isInAppBrowser = true;
     info.browserName = 'facebook';
-    
+
     const versionMatch = ua.match(/FBAV\/([\d.]+)/);
     if (versionMatch) {
       info.version = versionMatch[1];
     }
-    
+
     info.limitations = {
       localStorage: platform === 'ios',
       indexedDB: platform === 'ios',
@@ -152,7 +164,7 @@ export function detectInAppBrowser(): InAppBrowserInfo {
   else if (ua.includes('MessengerForiOS') || ua.includes('Messenger') || ua.includes('MESSENGER')) {
     info.isInAppBrowser = true;
     info.browserName = 'messenger';
-    
+
     info.limitations = {
       localStorage: platform === 'ios',
       indexedDB: platform === 'ios',
@@ -166,7 +178,7 @@ export function detectInAppBrowser(): InAppBrowserInfo {
   else if (ua.includes('Twitter')) {
     info.isInAppBrowser = true;
     info.browserName = 'twitter';
-    
+
     info.limitations = {
       localStorage: false,
       indexedDB: false,
@@ -180,7 +192,7 @@ export function detectInAppBrowser(): InAppBrowserInfo {
   else if (ua.includes('LinkedInApp')) {
     info.isInAppBrowser = true;
     info.browserName = 'linkedin';
-    
+
     info.limitations = {
       localStorage: false,
       indexedDB: false,
@@ -194,7 +206,7 @@ export function detectInAppBrowser(): InAppBrowserInfo {
   else if (ua.includes('TikTok') || ua.includes('Musical.ly')) {
     info.isInAppBrowser = true;
     info.browserName = 'tiktok';
-    
+
     info.limitations = {
       localStorage: platform === 'ios',
       indexedDB: platform === 'ios',
@@ -208,7 +220,7 @@ export function detectInAppBrowser(): InAppBrowserInfo {
   else if (ua.includes('KAKAOTALK')) {
     info.isInAppBrowser = true;
     info.browserName = 'kakaotalk';
-    
+
     info.limitations = {
       localStorage: platform === 'ios',
       indexedDB: false,
@@ -222,7 +234,7 @@ export function detectInAppBrowser(): InAppBrowserInfo {
   else if (ua.includes('Line/')) {
     info.isInAppBrowser = true;
     info.browserName = 'line';
-    
+
     info.limitations = {
       localStorage: platform === 'ios',
       indexedDB: false,
@@ -236,7 +248,7 @@ export function detectInAppBrowser(): InAppBrowserInfo {
   else if (ua.includes('MicroMessenger')) {
     info.isInAppBrowser = true;
     info.browserName = 'wechat';
-    
+
     info.limitations = {
       localStorage: true, // WeChat has serious storage issues
       indexedDB: true,
@@ -250,7 +262,7 @@ export function detectInAppBrowser(): InAppBrowserInfo {
   else if (ua.includes('Snapchat')) {
     info.isInAppBrowser = true;
     info.browserName = 'snapchat';
-    
+
     info.limitations = {
       localStorage: platform === 'ios',
       indexedDB: platform === 'ios',
@@ -265,7 +277,7 @@ export function detectInAppBrowser(): InAppBrowserInfo {
     // iOS app using WKWebView but not Safari
     info.isInAppBrowser = true;
     info.browserName = 'unknown';
-    
+
     info.limitations = {
       localStorage: true,
       indexedDB: true,
@@ -274,12 +286,11 @@ export function detectInAppBrowser(): InAppBrowserInfo {
       cookies: true,
       performance: false,
     };
-  }
-  else if (platform === 'android' && ua.includes('wv')) {
+  } else if (platform === 'android' && ua.includes('wv')) {
     // Android WebView indicator
     info.isInAppBrowser = true;
     info.browserName = 'unknown';
-    
+
     info.limitations = {
       localStorage: false,
       indexedDB: false,
@@ -289,7 +300,7 @@ export function detectInAppBrowser(): InAppBrowserInfo {
       performance: false,
     };
   }
-  
+
   // Log detection result
   console.log('🔍 [In-App Browser Detection]:', {
     detected: info.isInAppBrowser,
@@ -298,9 +309,9 @@ export function detectInAppBrowser(): InAppBrowserInfo {
     version: info.version,
     deviceInfo: info.deviceInfo,
     limitations: info.limitations,
-    userAgent: ua
+    userAgent: ua,
   });
-  
+
   return info;
 }
 
@@ -311,22 +322,22 @@ export interface InAppBrowserSettings {
   // Camera settings
   cameraResolution: { width: number; height: number };
   frameRate: number;
-  
+
   // MediaPipe settings
   useMediaPipe: boolean;
   faceMeshBackend: 'webgl' | 'cpu';
   faceMeshMaxFaces: number;
   faceMeshRefineLandmarks: boolean;
-  
+
   // Performance settings
   detectionInterval: number; // ms between face detections
   memoryLimit: number; // MB
-  
+
   // Storage settings
   useLocalStorage: boolean;
   useIndexedDB: boolean;
   useSessionStorage: boolean;
-  
+
   // UI settings
   showPerformanceWarning: boolean;
   showCompatibilityWarning: boolean;
@@ -335,7 +346,7 @@ export interface InAppBrowserSettings {
 
 export function getInAppBrowserSettings(info?: InAppBrowserInfo): InAppBrowserSettings {
   const browserInfo = info || detectInAppBrowser();
-  
+
   // Default settings for regular browsers
   let settings: InAppBrowserSettings = {
     cameraResolution: { width: 1280, height: 720 },
@@ -353,11 +364,11 @@ export function getInAppBrowserSettings(info?: InAppBrowserInfo): InAppBrowserSe
     showCompatibilityWarning: false,
     simplifiedUI: false,
   };
-  
+
   // Apply in-app browser specific optimizations
   if (browserInfo.isInAppBrowser) {
     console.log(`📱 [In-App Browser] Applying ${browserInfo.browserName} optimizations`);
-    
+
     // Base optimizations for all in-app browsers
     settings = {
       ...settings,
@@ -369,7 +380,7 @@ export function getInAppBrowserSettings(info?: InAppBrowserInfo): InAppBrowserSe
       memoryLimit: 150, // Lower memory limit
       showCompatibilityWarning: true,
     };
-    
+
     // Instagram-specific optimizations (most restrictive)
     if (browserInfo.browserName === 'instagram') {
       settings = {
@@ -384,7 +395,7 @@ export function getInAppBrowserSettings(info?: InAppBrowserInfo): InAppBrowserSe
         useSessionStorage: true, // Use session storage as fallback
         simplifiedUI: true, // Simplified UI for better performance
       };
-      
+
       // Extra restrictions for older Instagram versions
       if (browserInfo.version) {
         const majorVersion = parseInt(browserInfo.version.split('.')[0]);
@@ -394,14 +405,14 @@ export function getInAppBrowserSettings(info?: InAppBrowserInfo): InAppBrowserSe
           settings.showPerformanceWarning = true;
         }
       }
-      
+
       // iOS Instagram specific
       if (browserInfo.platform === 'ios') {
         settings.faceMeshBackend = 'cpu'; // Force CPU on iOS Instagram
         settings.memoryLimit = 80; // Even stricter on iOS
       }
     }
-    
+
     // Facebook/Messenger optimizations
     else if (browserInfo.browserName === 'facebook' || browserInfo.browserName === 'messenger') {
       settings = {
@@ -413,7 +424,7 @@ export function getInAppBrowserSettings(info?: InAppBrowserInfo): InAppBrowserSe
         useIndexedDB: !browserInfo.limitations.indexedDB,
       };
     }
-    
+
     // TikTok/Snapchat (video-heavy apps, need more conservative settings)
     else if (browserInfo.browserName === 'tiktok' || browserInfo.browserName === 'snapchat') {
       settings = {
@@ -426,7 +437,7 @@ export function getInAppBrowserSettings(info?: InAppBrowserInfo): InAppBrowserSe
         simplifiedUI: true,
       };
     }
-    
+
     // WeChat (most restrictive due to storage issues)
     else if (browserInfo.browserName === 'wechat') {
       settings = {
@@ -443,9 +454,9 @@ export function getInAppBrowserSettings(info?: InAppBrowserInfo): InAppBrowserSe
       };
     }
   }
-  
+
   console.log('⚙️ [In-App Browser Settings]:', settings);
-  
+
   return settings;
 }
 
@@ -454,44 +465,52 @@ export function getInAppBrowserSettings(info?: InAppBrowserInfo): InAppBrowserSe
  */
 export function needsCameraPermissionWorkaround(): boolean {
   const info = detectInAppBrowser();
-  
+
   // Instagram and Facebook require special camera permission handling
-  if (info.browserName === 'instagram' || info.browserName === 'facebook' || info.browserName === 'messenger') {
+  if (
+    info.browserName === 'instagram' ||
+    info.browserName === 'facebook' ||
+    info.browserName === 'messenger'
+  ) {
     // iOS 14.5+ requires additional permission
     if (info.platform === 'ios') {
       const iosMatch = navigator.userAgent.match(/OS (\d+)/);
       if (iosMatch) {
         const iosVersion = parseInt(iosMatch[1]);
         if (iosVersion >= 14) {
-          console.log('📸 [Camera] iOS 14.5+ Instagram/Facebook requires special permission handling');
+          console.log(
+            '📸 [Camera] iOS 14.5+ Instagram/Facebook requires special permission handling',
+          );
           return true;
         }
       }
     }
-    
+
     // Android also requires special handling for these apps
     if (info.platform === 'android') {
       console.log('📸 [Camera] Android Instagram/Facebook requires permission workaround');
       return true;
     }
   }
-  
+
   return false;
 }
 
 /**
  * Get camera constraints optimized for in-app browsers
  */
-export function getInAppCameraConstraints(facingMode: 'user' | 'environment' = 'user'): MediaTrackConstraints {
+export function getInAppCameraConstraints(
+  facingMode: 'user' | 'environment' = 'user',
+): MediaTrackConstraints {
   const settings = getInAppBrowserSettings();
-  
+
   const constraints: MediaTrackConstraints = {
     facingMode,
     width: { ideal: settings.cameraResolution.width },
     height: { ideal: settings.cameraResolution.height },
     frameRate: { max: settings.frameRate },
   };
-  
+
   // Instagram specific constraints
   const info = detectInAppBrowser();
   if (info.browserName === 'instagram') {
@@ -500,14 +519,14 @@ export function getInAppCameraConstraints(facingMode: 'user' | 'environment' = '
       constraints.width = { exact: settings.cameraResolution.width };
       constraints.height = { exact: settings.cameraResolution.height };
     }
-    
+
     // Disable advanced constraints that might fail
     delete (constraints as any).aspectRatio;
     delete (constraints as any).resizeMode;
   }
-  
+
   console.log('📹 [In-App Camera] Constraints:', constraints);
-  
+
   return constraints;
 }
 
@@ -517,7 +536,7 @@ export function getInAppCameraConstraints(facingMode: 'user' | 'environment' = '
 class InAppStorageFallback {
   private memoryStorage: Map<string, string> = new Map();
   private settings = getInAppBrowserSettings();
-  
+
   async setItem(key: string, value: string): Promise<void> {
     // Try localStorage first
     if (this.settings.useLocalStorage) {
@@ -528,7 +547,7 @@ class InAppStorageFallback {
         console.warn('localStorage failed, falling back:', e);
       }
     }
-    
+
     // Try sessionStorage
     if (this.settings.useSessionStorage) {
       try {
@@ -538,47 +557,51 @@ class InAppStorageFallback {
         console.warn('sessionStorage failed, falling back:', e);
       }
     }
-    
+
     // Fallback to memory
     this.memoryStorage.set(key, value);
     console.log('📦 [Storage] Using in-memory fallback for:', key);
   }
-  
+
   async getItem(key: string): Promise<string | null> {
     // Try localStorage first
     if (this.settings.useLocalStorage) {
       try {
         const value = localStorage.getItem(key);
         if (value !== null) return value;
-      } catch (e) {
+      } catch {
         // Continue to fallback
       }
     }
-    
+
     // Try sessionStorage
     if (this.settings.useSessionStorage) {
       try {
         const value = sessionStorage.getItem(key);
         if (value !== null) return value;
-      } catch (e) {
+      } catch {
         // Continue to fallback
       }
     }
-    
+
     // Check memory storage
     return this.memoryStorage.get(key) || null;
   }
-  
+
   async removeItem(key: string): Promise<void> {
     // Remove from all storages
     try {
       localStorage.removeItem(key);
-    } catch {}
-    
+    } catch {
+      /* noop */
+    }
+
     try {
       sessionStorage.removeItem(key);
-    } catch {}
-    
+    } catch {
+      /* noop */
+    }
+
     this.memoryStorage.delete(key);
   }
 }
@@ -590,12 +613,12 @@ export const inAppStorage = new InAppStorageFallback();
  */
 export function getInAppBrowserWarning(): string | null {
   const info = detectInAppBrowser();
-  
+
   if (!info.isInAppBrowser) return null;
-  
+
   const browserName = info.browserName || 'in-app browser';
   const capitalizedName = browserName.charAt(0).toUpperCase() + browserName.slice(1);
-  
+
   // Instagram-specific warning
   if (info.browserName === 'instagram') {
     if (info.platform === 'ios') {
@@ -604,21 +627,21 @@ export function getInAppBrowserWarning(): string | null {
       return `Using Instagram browser. For best experience, tap "..." menu and select "Open in Chrome".`;
     }
   }
-  
+
   // Facebook/Messenger warning
   if (info.browserName === 'facebook' || info.browserName === 'messenger') {
     return `Using ${capitalizedName} browser. For better performance, open in your default browser.`;
   }
-  
+
   // WeChat warning (most severe)
   if (info.browserName === 'wechat') {
     return `WeChat browser detected. Some features may not work. Please open in Safari or Chrome.`;
   }
-  
+
   // Generic in-app browser warning
   if (info.limitations.performance || info.limitations.webGL) {
     return `Using ${capitalizedName} browser. Performance may be limited. Consider opening in your default browser.`;
   }
-  
+
   return null;
 }

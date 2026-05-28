@@ -1,17 +1,17 @@
-console.log('[MAIN] Starting application...');
-
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { QueryProvider } from './hooks/QueryProvider'
-import { SpeedInsights } from '@vercel/speed-insights/react'
-import { preloadEnvironment } from './utils/preload'
-import { setupChunkErrorHandler } from './utils/chunkErrorHandler'
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { QueryProvider } from './hooks/QueryProvider';
+import { SpeedInsights } from '@vercel/speed-insights/react';
+import { preloadEnvironment } from './utils/preload';
+import { setupChunkErrorHandler } from './utils/chunkErrorHandler';
 // import { scheduleTensorFlowPreinit } from './utils/tensorflowInit'
-import './index.css'
-import './styles/admin-theme.css'
-import App from './App.tsx'
+import { devLog } from './utils/devLog';
+import './index.css';
+import './styles/admin-theme.css';
+import App from './App.tsx';
 
-console.log('[MAIN] Imports complete');
+devLog.log('[MAIN] Starting application...');
+devLog.log('[MAIN] Imports complete');
 
 // 경로 플래그를 최상단에서 먼저 선언하여 TDZ(Temporal Dead Zone) 회피
 // - 아래에서 Service Worker 등록 조건 등에서 사용되므로 선행 선언 필수
@@ -26,12 +26,13 @@ sessionStorage.removeItem('chunk_reload_count');
 // Register service worker for better caching (production only)
 if ('serviceWorker' in navigator && import.meta.env.PROD && !isAdminRoute) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker
+      .register('/sw.js')
       .then((registration) => {
-        console.log('ServiceWorker registered:', registration);
+        devLog.log('ServiceWorker registered:', registration);
       })
       .catch((error) => {
-        console.log('ServiceWorker registration failed:', error);
+        devLog.log('ServiceWorker registration failed:', error);
       });
   });
 }
@@ -45,27 +46,29 @@ window.addEventListener('unhandledrejection', (event) => {
   console.error('[MAIN] Unhandled promise rejection:', event.reason);
 });
 
-
 // On admin routes, aggressively disable Service Worker/caches to avoid stale bundles
 if (isAdminRoute && 'serviceWorker' in navigator) {
   (async () => {
     try {
       const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map(r => r.unregister()));
+      await Promise.all(regs.map((r) => r.unregister()));
       if ('caches' in window) {
         const names = await caches.keys();
-        await Promise.all(names.map(name => caches.delete(name)));
+        await Promise.all(names.map((name) => caches.delete(name)));
       }
-      console.log('[MAIN] Admin route: disabled service worker and cleared caches');
+      devLog.log('[MAIN] Admin route: disabled service worker and cleared caches');
     } catch (e) {
       console.warn('[MAIN] Failed to clear SW/caches on admin route', e);
     }
   })();
 }
 
-console.log('[MAIN] Starting app initialization...');
-console.log('[MAIN] Current route:', typeof window !== 'undefined' ? window.location.pathname : 'unknown');
-console.log('[MAIN] TensorFlow preload enabled:', !isAdminRoute);
+devLog.log('[MAIN] Starting app initialization...');
+devLog.log(
+  '[MAIN] Current route:',
+  typeof window !== 'undefined' ? window.location.pathname : 'unknown',
+);
+devLog.log('[MAIN] TensorFlow preload enabled:', !isAdminRoute);
 
 // Render app immediately without waiting for TensorFlow
 const rootElement = document.getElementById('root');
@@ -73,33 +76,35 @@ const rootElement = document.getElementById('root');
 if (!rootElement) {
   console.error('[MAIN] Root element not found!');
 } else {
-  console.log('[MAIN] Creating React root...');
+  devLog.log('[MAIN] Creating React root...');
   const root = createRoot(rootElement);
-  
-  console.log('[MAIN] Rendering app immediately...');
+
+  devLog.log('[MAIN] Rendering app immediately...');
   root.render(
     <StrictMode>
       <QueryProvider>
         <App />
-        {!isAdminRoute && import.meta.env.VITE_VERCEL_ANALYTICS_DISABLED !== 'true' && <SpeedInsights />}
+        {!isAdminRoute && import.meta.env.VITE_VERCEL_ANALYTICS_DISABLED !== 'true' && (
+          <SpeedInsights />
+        )}
       </QueryProvider>
     </StrictMode>,
   );
-  console.log('[MAIN] Render call complete');
-  
+  devLog.log('[MAIN] Render call complete');
+
   // Load environment and TensorFlow in background after render
-  console.log('[MAIN] Loading resources in background...');
-  
+  devLog.log('[MAIN] Loading resources in background...');
+
   // Preload environment variables (non-blocking)
-  preloadEnvironment().catch(error => {
+  preloadEnvironment().catch((error) => {
     console.error('[MAIN] Failed to preload environment:', error);
   });
-  
+
   // Initialize TensorFlow in background (non-blocking) unless we're on admin routes
   // if (!isAdminRoute) {
-  //   console.log('[MAIN] Scheduling TensorFlow pre-init in background...');
+  //   devLog.log('[MAIN] Scheduling TensorFlow pre-init in background...');
   //   scheduleTensorFlowPreinit(500);
   // } else {
-  //   console.log('[MAIN] Skipping TensorFlow preload on admin route');
+  //   devLog.log('[MAIN] Skipping TensorFlow preload on admin route');
   // }
 }

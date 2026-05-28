@@ -18,6 +18,7 @@ import starOnOrbit from '../assets/궤도위의별.png';
 import star3 from '../assets/별3.png';
 import closedEye from '../assets/감은눈.png';
 import openEye from '../assets/뜬눈.png';
+import { devLog } from '@/utils/devLog';
 
 const HIGLandingPage: React.FC = () => {
   const navigate = useNavigate();
@@ -64,7 +65,7 @@ const HIGLandingPage: React.FC = () => {
     try {
       // Use cached CSRF token if available
       if (cachedCsrfToken.current) {
-        console.log('✅ Using cached CSRF token');
+        devLog.log('✅ Using cached CSRF token');
         // Set it in the API client
         const { apiClient } = await import('@/services/api/client');
         apiClient.defaults.headers['x-csrf-token'] = cachedCsrfToken.current;
@@ -75,7 +76,7 @@ const HIGLandingPage: React.FC = () => {
       const response = await SessionAPI.createSession();
       setSessionData(response.data.sessionId, response.data.instagramId);
       trackSessionStart(response.data.instagramId || 'anonymous');
-      console.log('✅ Session created:', response.data.sessionId);
+      devLog.log('✅ Session created:', response.data.sessionId);
       
       // Clear timeout if session created successfully
       if (sessionTimeout) {
@@ -110,27 +111,27 @@ const HIGLandingPage: React.FC = () => {
         if (!isInstagram) {
           const token = await CSRFAPI.getToken();
           cachedCsrfToken.current = token;
-          console.log('✅ CSRF token pre-fetched and cached');
+          devLog.log('✅ CSRF token pre-fetched and cached');
           
           // Warm up backend with a lightweight request (skip for Instagram)
           await SessionAPI.getSession('warmup').catch(() => {
             // Ignore errors, this is just to warm up the backend
-            console.log('Backend warmup request sent');
+            devLog.log('Backend warmup request sent');
           });
         } else {
-          console.log('📱 [Instagram] Skipping CSRF pre-fetch and warmup to reduce delays');
+          devLog.log('📱 [Instagram] Skipping CSRF pre-fetch and warmup to reduce delays');
         }
         
         // Preload TensorFlow.js in background while user reads content
         // Skip for Instagram to reduce memory pressure
         if (!isInstagram) {
-          console.log('🔧 [HIGLandingPage] Starting TensorFlow preload in background...');
+          devLog.log('🔧 [HIGLandingPage] Starting TensorFlow preload in background...');
           const tfStartTime = performance.now();
           initializeTensorFlow()
             .then(() => {
               const tfLoadTime = performance.now() - tfStartTime;
-              console.log(`✅ [HIGLandingPage] TensorFlow preloaded in ${Math.round(tfLoadTime)}ms`);
-              console.log('📊 [HIGLandingPage] TensorFlow ready for face detection models');
+              devLog.log(`✅ [HIGLandingPage] TensorFlow preloaded in ${Math.round(tfLoadTime)}ms`);
+              devLog.log('📊 [HIGLandingPage] TensorFlow ready for face detection models');
             })
             .catch(error => {
               console.warn('⚠️ [HIGLandingPage] TensorFlow preload failed:', error);
@@ -138,7 +139,7 @@ const HIGLandingPage: React.FC = () => {
             });
         }
       } catch (error) {
-        console.log('Failed to pre-initialize:', error);
+        devLog.log('Failed to pre-initialize:', error);
       }
     };
     

@@ -1,17 +1,17 @@
 // Design System Utilities - Helper functions for applying design tokens
 
 import { tokens } from './tokens';
-import type { 
-  SpacingProps, 
-  TypographyProps, 
-  LayoutProps, 
-  BorderProps, 
+import type {
+  SpacingProps,
+  TypographyProps,
+  LayoutProps,
+  BorderProps,
   EffectProps,
   StyleProps,
   Color,
   Size,
   Variant,
-  ResponsiveValue
+  ResponsiveValue,
 } from './types';
 
 // Breakpoint utilities
@@ -27,7 +27,7 @@ export const breakpoints = {
 // Get current breakpoint
 export const getCurrentBreakpoint = (): keyof typeof breakpoints => {
   const width = window.innerWidth;
-  
+
   if (width < breakpoints.sm) return 'xs';
   if (width < breakpoints.md) return 'sm';
   if (width < breakpoints.lg) return 'md';
@@ -39,18 +39,18 @@ export const getCurrentBreakpoint = (): keyof typeof breakpoints => {
 // Handle responsive values
 export const getResponsiveValue = <T>(
   value: ResponsiveValue<T> | undefined,
-  defaultValue?: T
+  defaultValue?: T,
 ): T | undefined => {
   if (value === undefined) return defaultValue;
-  
+
   // If not an object, return as is
   if (typeof value !== 'object' || value === null) return value as T;
-  
+
   // Get current breakpoint and find appropriate value
   const currentBreakpoint = getCurrentBreakpoint();
   const breakpointKeys = Object.keys(breakpoints) as Array<keyof typeof breakpoints>;
   const currentIndex = breakpointKeys.indexOf(currentBreakpoint);
-  
+
   // Look for value at current breakpoint or lower
   for (let i = currentIndex; i >= 0; i--) {
     const breakpoint = breakpointKeys[i];
@@ -58,12 +58,14 @@ export const getResponsiveValue = <T>(
       return value[breakpoint];
     }
   }
-  
+
   return defaultValue;
 };
 
 // Spacing utilities
-export const getSpacingValue = (value: keyof typeof tokens.spacing | 'auto' | undefined): string | undefined => {
+export const getSpacingValue = (
+  value: keyof typeof tokens.spacing | 'auto' | undefined,
+): string | undefined => {
   if (!value) return undefined;
   if (value === 'auto') return 'auto';
   return tokens.spacing[value];
@@ -71,7 +73,7 @@ export const getSpacingValue = (value: keyof typeof tokens.spacing | 'auto' | un
 
 export const generateSpacingClasses = (props: SpacingProps): string[] => {
   const classes: string[] = [];
-  
+
   // Padding
   if (props.p) classes.push(`p-${props.p}`);
   if (props.px) classes.push(`px-${props.px}`);
@@ -80,7 +82,7 @@ export const generateSpacingClasses = (props: SpacingProps): string[] => {
   if (props.pr) classes.push(`pr-${props.pr}`);
   if (props.pb) classes.push(`pb-${props.pb}`);
   if (props.pl) classes.push(`pl-${props.pl}`);
-  
+
   // Margin
   if (props.m) classes.push(`m-${props.m}`);
   if (props.mx) classes.push(`mx-${props.mx}`);
@@ -89,31 +91,35 @@ export const generateSpacingClasses = (props: SpacingProps): string[] => {
   if (props.mr) classes.push(`mr-${props.mr}`);
   if (props.mb) classes.push(`mb-${props.mb}`);
   if (props.ml) classes.push(`ml-${props.ml}`);
-  
+
   // Gap
   if (props.gap) classes.push(`gap-${props.gap}`);
   if (props.gapX) classes.push(`gap-x-${props.gapX}`);
   if (props.gapY) classes.push(`gap-y-${props.gapY}`);
-  
+
   return classes;
 };
 
 // Typography utilities
 export const generateTypographyClasses = (props: TypographyProps): string[] => {
   const classes: string[] = [];
-  
+
   if (props.fontSize) classes.push(`text-${props.fontSize}`);
   if (props.fontWeight) classes.push(`font-${props.fontWeight}`);
   if (props.textAlign) classes.push(`text-${props.textAlign}`);
   if (props.textColor) classes.push(`text-${props.textColor}`);
-  
+
   return classes;
 };
 
 // Color utilities
 export const getColorValue = (color: Color, shade: number = 400): string => {
   if (color === 'gray') return tokens.colors.gray[shade as keyof typeof tokens.colors.gray];
-  return tokens.colors[color][shade as keyof typeof tokens.colors.primary] || tokens.colors[color].DEFAULT || tokens.colors[color][500];
+  return (
+    tokens.colors[color][shade as keyof typeof tokens.colors.primary] ||
+    tokens.colors[color].DEFAULT ||
+    tokens.colors[color][500]
+  );
 };
 
 // Size mapping utilities
@@ -128,15 +134,10 @@ export const sizeMap = {
 // Variant utilities
 export const getVariantClasses = (variant: Variant, color: Color): string[] => {
   const classes: string[] = [];
-  
+
   switch (variant) {
     case 'solid':
-      classes.push(
-        `bg-${color}`,
-        'text-white',
-        `hover:bg-${color}-600`,
-        `focus:ring-${color}-500`
-      );
+      classes.push(`bg-${color}`, 'text-white', `hover:bg-${color}-600`, `focus:ring-${color}-500`);
       break;
     case 'outline':
       classes.push(
@@ -144,7 +145,7 @@ export const getVariantClasses = (variant: Variant, color: Color): string[] => {
         `text-${color}`,
         `border-2 border-${color}`,
         `hover:bg-${color}-50`,
-        `focus:ring-${color}-500`
+        `focus:ring-${color}-500`,
       );
       break;
     case 'ghost':
@@ -152,7 +153,7 @@ export const getVariantClasses = (variant: Variant, color: Color): string[] => {
         'bg-transparent',
         `text-${color}`,
         `hover:bg-${color}-50`,
-        `focus:ring-${color}-500`
+        `focus:ring-${color}-500`,
       );
       break;
     case 'soft':
@@ -160,48 +161,57 @@ export const getVariantClasses = (variant: Variant, color: Color): string[] => {
         `bg-${color}-100`,
         `text-${color}-700`,
         `hover:bg-${color}-200`,
-        `focus:ring-${color}-500`
+        `focus:ring-${color}-500`,
       );
       break;
   }
-  
+
   return classes;
 };
 
 // Border utilities
 export const generateBorderClasses = (props: BorderProps): string[] => {
   const classes: string[] = [];
-  
-  if (props.border) classes.push(`border${typeof props.border === 'number' ? `-${props.border}` : ''}`);
-  if (props.borderTop) classes.push(`border-t${typeof props.borderTop === 'number' ? `-${props.borderTop}` : ''}`);
-  if (props.borderRight) classes.push(`border-r${typeof props.borderRight === 'number' ? `-${props.borderRight}` : ''}`);
-  if (props.borderBottom) classes.push(`border-b${typeof props.borderBottom === 'number' ? `-${props.borderBottom}` : ''}`);
-  if (props.borderLeft) classes.push(`border-l${typeof props.borderLeft === 'number' ? `-${props.borderLeft}` : ''}`);
-  
+
+  if (props.border)
+    classes.push(`border${typeof props.border === 'number' ? `-${props.border}` : ''}`);
+  if (props.borderTop)
+    classes.push(`border-t${typeof props.borderTop === 'number' ? `-${props.borderTop}` : ''}`);
+  if (props.borderRight)
+    classes.push(`border-r${typeof props.borderRight === 'number' ? `-${props.borderRight}` : ''}`);
+  if (props.borderBottom)
+    classes.push(
+      `border-b${typeof props.borderBottom === 'number' ? `-${props.borderBottom}` : ''}`,
+    );
+  if (props.borderLeft)
+    classes.push(`border-l${typeof props.borderLeft === 'number' ? `-${props.borderLeft}` : ''}`);
+
   if (props.borderColor) classes.push(`border-${props.borderColor}`);
-  if (props.borderRadius) classes.push(`rounded${props.borderRadius !== 'md' ? `-${props.borderRadius}` : ''}`);
-  if (props.borderStyle && props.borderStyle !== 'solid') classes.push(`border-${props.borderStyle}`);
-  
+  if (props.borderRadius)
+    classes.push(`rounded${props.borderRadius !== 'md' ? `-${props.borderRadius}` : ''}`);
+  if (props.borderStyle && props.borderStyle !== 'solid')
+    classes.push(`border-${props.borderStyle}`);
+
   return classes;
 };
 
 // Effect utilities
 export const generateEffectClasses = (props: EffectProps): string[] => {
   const classes: string[] = [];
-  
+
   if (props.shadow) classes.push(`shadow${props.shadow !== 'md' ? `-${props.shadow}` : ''}`);
   if (props.opacity !== undefined) classes.push(`opacity-${Math.round(props.opacity * 100)}`);
   if (props.cursor) classes.push(`cursor-${props.cursor}`);
   if (props.transition) classes.push('transition-all duration-normal');
   if (props.zIndex !== undefined) classes.push(`z-${props.zIndex}`);
-  
+
   return classes;
 };
 
 // Layout utilities
 export const generateLayoutClasses = (props: LayoutProps): string[] => {
   const classes: string[] = [];
-  
+
   if (props.display) {
     if (props.display === 'flex') classes.push('flex');
     else if (props.display === 'inline-flex') classes.push('inline-flex');
@@ -210,16 +220,16 @@ export const generateLayoutClasses = (props: LayoutProps): string[] => {
     else if (props.display === 'inline-block') classes.push('inline-block');
     else if (props.display === 'none') classes.push('hidden');
   }
-  
+
   if (props.position) classes.push(props.position);
   if (props.overflow) classes.push(`overflow-${props.overflow}`);
-  
+
   // Width/Height (you might want to handle these differently based on your needs)
   if (props.width === 'full') classes.push('w-full');
   if (props.height === 'full') classes.push('h-full');
   if (props.maxWidth === 'full') classes.push('max-w-full');
   if (props.maxHeight === 'full') classes.push('max-h-full');
-  
+
   return classes;
 };
 
@@ -237,7 +247,7 @@ export const generateClasses = (props: StyleProps): string[] => {
 // CSS-in-JS style generation
 export const generateStyles = (props: StyleProps): React.CSSProperties => {
   const styles: React.CSSProperties = {};
-  
+
   // Spacing
   if (props.p) styles.padding = getSpacingValue(props.p);
   if (props.px) {
@@ -252,7 +262,7 @@ export const generateStyles = (props: StyleProps): React.CSSProperties => {
   if (props.pr) styles.paddingRight = getSpacingValue(props.pr);
   if (props.pb) styles.paddingBottom = getSpacingValue(props.pb);
   if (props.pl) styles.paddingLeft = getSpacingValue(props.pl);
-  
+
   if (props.m) styles.margin = getSpacingValue(props.m);
   if (props.mx) {
     styles.marginLeft = getSpacingValue(props.mx);
@@ -266,9 +276,9 @@ export const generateStyles = (props: StyleProps): React.CSSProperties => {
   if (props.mr) styles.marginRight = getSpacingValue(props.mr);
   if (props.mb) styles.marginBottom = getSpacingValue(props.mb);
   if (props.ml) styles.marginLeft = getSpacingValue(props.ml);
-  
+
   if (props.gap) styles.gap = getSpacingValue(props.gap);
-  
+
   // Typography
   if (props.fontSize) {
     const fontSize = tokens.typography.fontSize[props.fontSize];
@@ -280,11 +290,12 @@ export const generateStyles = (props: StyleProps): React.CSSProperties => {
   if (props.fontWeight) styles.fontWeight = tokens.typography.fontWeight[props.fontWeight];
   if (props.textAlign) styles.textAlign = props.textAlign;
   if (props.textColor) {
-    styles.color = props.textColor === 'inherit' || props.textColor === 'current' 
-      ? props.textColor 
-      : getColorValue(props.textColor as Color);
+    styles.color =
+      props.textColor === 'inherit' || props.textColor === 'current'
+        ? props.textColor
+        : getColorValue(props.textColor as Color);
   }
-  
+
   // Layout
   if (props.display) styles.display = props.display as any;
   if (props.position) styles.position = props.position as any;
@@ -295,12 +306,12 @@ export const generateStyles = (props: StyleProps): React.CSSProperties => {
   if (props.minWidth) styles.minWidth = props.minWidth;
   if (props.minHeight) styles.minHeight = props.minHeight;
   if (props.overflow) styles.overflow = props.overflow as any;
-  
+
   // Border
   if (props.borderRadius) {
     styles.borderRadius = tokens.borders.radius[props.borderRadius];
   }
-  
+
   // Effects
   if (props.shadow) {
     styles.boxShadow = tokens.shadows[props.shadow];
@@ -312,31 +323,33 @@ export const generateStyles = (props: StyleProps): React.CSSProperties => {
   if (props.transition) {
     styles.transition = 'all 300ms cubic-bezier(0.645, 0.045, 0.355, 1)';
   }
-  
+
   return styles;
 };
 
-// Merge classes utility (similar to clsx)
-export const cx = (...classes: (string | undefined | null | false)[]): string => {
-  return classes.filter(Boolean).join(' ');
+// Merge classes utility (similar to clsx) — accepts nested arrays
+type ClassValue = string | undefined | null | false | ClassValue[];
+
+export const cx = (...classes: ClassValue[]): string => {
+  return (classes as unknown[]).flat(Infinity).filter(Boolean).join(' ');
 };
 
 // Create consistent component class names
 export const createComponentClasses = (
   componentName: string,
   props: StyleProps & { variant?: Variant; size?: Size; color?: Color },
-  additionalClasses?: string[]
+  additionalClasses?: string[],
 ): string => {
   const baseClasses = [`ds-${componentName}`];
-  
+
   // Add variant and size classes
   if (props.variant) baseClasses.push(`ds-${componentName}--${props.variant}`);
   if (props.size) baseClasses.push(`ds-${componentName}--${props.size}`);
   if (props.color) baseClasses.push(`ds-${componentName}--${props.color}`);
-  
+
   // Add generated classes from props
   const generatedClasses = generateClasses(props);
-  
+
   // Combine all classes
   return cx(...baseClasses, ...generatedClasses, ...(additionalClasses || []));
 };

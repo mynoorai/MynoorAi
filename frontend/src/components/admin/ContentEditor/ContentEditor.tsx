@@ -7,12 +7,21 @@ import { Underline } from '@tiptap/extension-underline';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
 import {
-  Bold, Italic, Underline as UnderlineIcon, List, ListOrdered,
-  Link as LinkIcon, Image as ImageIcon, Code, Quote,
-  AlignLeft, AlignCenter, AlignRight, Undo, Redo,
-  Heading1, Heading2, Heading3
+  Bold,
+  Italic,
+  Underline as UnderlineIcon,
+  List,
+  ListOrdered,
+  Link as LinkIcon,
+  Image as ImageIcon,
+  Code,
+  Quote,
+  Undo,
+  Redo,
+  Heading1,
+  Heading2,
+  Heading3,
 } from 'lucide-react';
-import { Button } from '@/components/ui';
 
 interface ContentEditorProps {
   content: string;
@@ -20,32 +29,28 @@ interface ContentEditorProps {
   placeholder?: string;
 }
 
-export const ContentEditor: React.FC<ContentEditorProps> = ({ 
-  content, 
-  onChange, 
-  placeholder = 'Write your content here...'
-}) => {
+export const ContentEditor: React.FC<ContentEditorProps> = ({ content, onChange }) => {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
         heading: {
-          levels: [1, 2, 3, 4, 5, 6]
-        }
+          levels: [1, 2, 3, 4, 5, 6],
+        },
       }),
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
-          class: 'text-blue-600 underline hover:text-blue-800'
-        }
+          class: 'text-blue-600 underline hover:text-blue-800',
+        },
       }),
       Image.configure({
         HTMLAttributes: {
-          class: 'max-w-full h-auto rounded-lg my-4'
-        }
+          class: 'max-w-full h-auto rounded-lg my-4',
+        },
       }),
       Underline,
       TextStyle,
-      Color
+      Color,
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -53,9 +58,9 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none min-h-[400px] p-4 focus:outline-none'
-      }
-    }
+        class: 'prose prose-sm max-w-none min-h-[400px] p-4 focus:outline-none',
+      },
+    },
   });
 
   if (!editor) {
@@ -192,16 +197,10 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({
 
         {/* Undo/Redo */}
         <div className="flex items-center gap-1">
-          <ToolbarButton
-            onClick={() => editor.chain().focus().undo().run()}
-            title="Undo"
-          >
+          <ToolbarButton onClick={() => editor.chain().focus().undo().run()} title="Undo">
             <Undo className="w-4 h-4" />
           </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().redo().run()}
-            title="Redo"
-          >
+          <ToolbarButton onClick={() => editor.chain().focus().redo().run()} title="Redo">
             <Redo className="w-4 h-4" />
           </ToolbarButton>
         </div>

@@ -3,7 +3,6 @@ import { cn } from '@/utils/cn';
 import { createImagePreview, revokeImagePreview } from '@/utils/helpers';
 import { validateImageFile } from '@/utils/validators';
 import { VALIDATION_MESSAGES } from '@/utils/constants';
-import { convertHEICToJPEG, isHEICSupported } from '@/utils/imageConverter';
 import { ImageProcessor } from '@/utils/imageProcessor';
 import { CameraCapture } from '../CameraCapture';
 import { isMediaStreamSupported } from '@/utils/camera';
@@ -33,98 +32,104 @@ export const ImageUpload = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = useCallback(async (file: File) => {
-    setIsValidating(true);
-    setValidationWarnings([]); // Clear previous warnings
-    
-    try {
-      // Basic file validation first
-      const validation = validateImageFile(file);
-      
-      if (!validation.isValid) {
-        onError(VALIDATION_MESSAGES[validation.error as keyof typeof VALIDATION_MESSAGES]);
-        return;
-      }
+  const handleFile = useCallback(
+    async (file: File) => {
+      setIsValidating(true);
+      setValidationWarnings([]); // Clear previous warnings
 
-      // Track validation start
-      trackEvent('image_validation_start', {
-        file_size_mb: Math.round(file.size / (1024 * 1024) * 100) / 100,
-        file_type: file.type,
-        validation_method: 'client_side'
-      });
-
-      // Client-side validation with face detection (if available)
-      if (isClientValidationAvailable()) {
-        try {
-          console.log('Starting client-side image validation...');
-          const clientValidation = await validateImageClientSide(file);
-          console.log('Client validation result:', clientValidation);
-
-          if (!clientValidation.isValid && clientValidation.errorType) {
-            const errorInfo = getImageAnalysisErrorInfo(clientValidation.errorType);
-            
-            // Track validation failure
-            trackEvent('image_validation_failed', {
-              error_type: clientValidation.errorType,
-              face_count: clientValidation.details.faceCount,
-              validation_method: 'client_side'
-            });
-            
-            onError(`${errorInfo.title}: ${errorInfo.message}`);
-            return;
-          }
-
-          // Show warnings if any
-          if (clientValidation.details.warnings.length > 0) {
-            console.warn('Image validation warnings:', clientValidation.details.warnings);
-            setValidationWarnings(clientValidation.details.warnings);
-          }
-
-          // Track successful validation
-          trackEvent('image_validation_success', {
-            face_count: clientValidation.details.faceCount,
-            brightness: clientValidation.details.imageQuality.brightness,
-            contrast: clientValidation.details.imageQuality.contrast,
-            sharpness: clientValidation.details.imageQuality.sharpness,
-            validation_method: 'client_side'
-          });
-
-        } catch (validationError) {
-          console.warn('Client-side validation failed, continuing:', validationError);
-          // Continue with processing even if client validation fails
-        }
-      }
-
-      let processedFile = file;
-      let previewUrl: string;
-      
-      // Process image (HEIC conversion and compression)
       try {
-        console.log('Processing image:', file.name, file.type, file.size);
-        processedFile = await ImageProcessor.processImage(file, {
-          maxWidth: 1920,
-          maxHeight: 1920,
-          quality: 0.9,
-          format: 'jpeg'
+        // Basic file validation first
+        const validation = validateImageFile(file);
+
+        if (!validation.isValid) {
+          onError(VALIDATION_MESSAGES[validation.error as keyof typeof VALIDATION_MESSAGES]);
+          return;
+        }
+
+        // Track validation start
+        trackEvent('image_validation_start', {
+          file_size_mb: Math.round((file.size / (1024 * 1024)) * 100) / 100,
+          file_type: file.type,
+          validation_method: 'client_side',
         });
-        console.log('Image processed:', processedFile.name, processedFile.type, processedFile.size);
-      } catch (processingError) {
-        console.warn('Image processing failed, using original:', processingError);
-        // Continue with original file if processing fails
+
+        // Client-side validation with face detection (if available)
+        if (isClientValidationAvailable()) {
+          try {
+            console.log('Starting client-side image validation...');
+            const clientValidation = await validateImageClientSide(file);
+            console.log('Client validation result:', clientValidation);
+
+            if (!clientValidation.isValid && clientValidation.errorType) {
+              const errorInfo = getImageAnalysisErrorInfo(clientValidation.errorType);
+
+              // Track validation failure
+              trackEvent('image_validation_failed', {
+                error_type: clientValidation.errorType,
+                face_count: clientValidation.details.faceCount,
+                validation_method: 'client_side',
+              });
+
+              onError(`${errorInfo.title}: ${errorInfo.message}`);
+              return;
+            }
+
+            // Show warnings if any
+            if (clientValidation.details.warnings.length > 0) {
+              console.warn('Image validation warnings:', clientValidation.details.warnings);
+              setValidationWarnings(clientValidation.details.warnings);
+            }
+
+            // Track successful validation
+            trackEvent('image_validation_success', {
+              face_count: clientValidation.details.faceCount,
+              brightness: clientValidation.details.imageQuality.brightness,
+              contrast: clientValidation.details.imageQuality.contrast,
+              sharpness: clientValidation.details.imageQuality.sharpness,
+              validation_method: 'client_side',
+            });
+          } catch (validationError) {
+            console.warn('Client-side validation failed, continuing:', validationError);
+            // Continue with processing even if client validation fails
+          }
+        }
+
+        let processedFile = file;
+
+        // Process image (HEIC conversion and compression)
+        try {
+          console.log('Processing image:', file.name, file.type, file.size);
+          processedFile = await ImageProcessor.processImage(file, {
+            maxWidth: 1920,
+            maxHeight: 1920,
+            quality: 0.9,
+            format: 'jpeg',
+          });
+          console.log(
+            'Image processed:',
+            processedFile.name,
+            processedFile.type,
+            processedFile.size,
+          );
+        } catch (processingError) {
+          console.warn('Image processing failed, using original:', processingError);
+          // Continue with original file if processing fails
+        }
+
+        // Create preview
+        const previewUrl = createImagePreview(processedFile);
+
+        setPreview(previewUrl);
+        onUpload(processedFile, previewUrl);
+      } catch (error) {
+        console.error('File handling error:', error);
+        onError('An error occurred while processing the image.');
+      } finally {
+        setIsValidating(false);
       }
-      
-      // Create preview
-      previewUrl = createImagePreview(processedFile);
-      
-      setPreview(previewUrl);
-      onUpload(processedFile, previewUrl);
-    } catch (error) {
-      console.error('File handling error:', error);
-      onError('An error occurred while processing the image.');
-    } finally {
-      setIsValidating(false);
-    }
-  }, [onUpload, onError]);
+    },
+    [onUpload, onError],
+  );
 
   const handleDragOver = (e: React.DragEvent): void => {
     e.preventDefault();
@@ -171,16 +176,16 @@ export const ImageUpload = ({
 
   const handleCameraClick = (e: React.MouseEvent): void => {
     e.stopPropagation();
-    
+
     // Track camera button click
     trackEvent('button_click', {
       button_name: 'image_upload_camera',
       page: 'upload',
       action: 'open_camera',
       method: supportsMediaStream ? 'media_stream' : 'file_input',
-      user_flow_step: 'camera_selection'
+      user_flow_step: 'camera_selection',
     });
-    
+
     if (supportsMediaStream) {
       setShowCamera(true);
     } else {
@@ -204,7 +209,7 @@ export const ImageUpload = ({
         className="hidden"
         disabled={disabled}
       />
-      
+
       {/* Hidden camera input for fallback */}
       <input
         ref={cameraInputRef}
@@ -226,9 +231,9 @@ export const ImageUpload = ({
             'flex flex-col items-center justify-center text-center',
             'bg-gradient-to-b from-gray-50/50 to-gray-100/50',
             isDragging ? 'scale-105 shadow-2xl' : '',
-            (disabled || isValidating) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+            disabled || isValidating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
           )}
-          onClick={(!disabled && !isValidating) ? handleButtonClick : undefined}
+          onClick={!disabled && !isValidating ? handleButtonClick : undefined}
         >
           {isValidating ? (
             /* Validation Loading State */
@@ -236,9 +241,7 @@ export const ImageUpload = ({
               <div className="w-20 h-20 rounded-full flex items-center justify-center mb-4 bg-gradient-to-br from-primary-600 to-primary-700 shadow-xl">
                 <div className="w-8 h-8 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
               </div>
-              <p className="text-lg font-medium text-gray-800 mb-1">
-                Validating image...
-              </p>
+              <p className="text-lg font-medium text-gray-800 mb-1">Validating image...</p>
               <p className="text-sm text-gray-500 mb-6">
                 Checking image quality and detecting faces
               </p>
@@ -247,12 +250,14 @@ export const ImageUpload = ({
             /* Normal Upload State */
             <>
               {/* Camera Icon */}
-              <div className={cn(
-                'w-20 h-20 rounded-full flex items-center justify-center mb-4',
-                'bg-gradient-to-br from-primary-600 to-primary-700',
-                'shadow-xl transform transition-transform',
-                isDragging ? 'scale-110' : ''
-              )}>
+              <div
+                className={cn(
+                  'w-20 h-20 rounded-full flex items-center justify-center mb-4',
+                  'bg-gradient-to-br from-primary-600 to-primary-700',
+                  'shadow-xl transform transition-transform',
+                  isDragging ? 'scale-110' : '',
+                )}
+              >
                 <svg
                   width="40"
                   height="40"
@@ -267,16 +272,14 @@ export const ImageUpload = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
-                  <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="2"/>
+                  <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="2" />
                 </svg>
               </div>
 
               <p className="text-lg font-medium text-gray-800 mb-1">
                 {isDragging ? 'Drop your photo' : 'Add your photo'}
               </p>
-              <p className="text-sm text-gray-500 mb-6">
-                Tap to choose or drag here
-              </p>
+              <p className="text-sm text-gray-500 mb-6">Tap to choose or drag here</p>
             </>
           )}
 
@@ -295,15 +298,15 @@ export const ImageUpload = ({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  
+
                   // Track gallery button click
                   trackEvent('button_click', {
                     button_name: 'image_upload_gallery',
                     page: 'upload',
                     action: 'open_gallery',
-                    user_flow_step: 'gallery_selection'
+                    user_flow_step: 'gallery_selection',
                   });
-                  
+
                   handleButtonClick();
                 }}
                 className="px-6 py-3 bg-gradient-to-r from-secondary-400 to-secondary-500 text-white rounded-full text-sm font-bold shadow-lg hover:shadow-xl hover:from-secondary-500 hover:to-secondary-600 transform hover:-translate-y-0.5 active:scale-95 transition-all duration-200"
@@ -338,16 +341,21 @@ export const ImageUpload = ({
                 button_name: 'image_upload_remove',
                 page: 'upload',
                 action: 'remove_image',
-                user_flow_step: 'image_removed'
+                user_flow_step: 'image_removed',
               });
-              
+
               handleRemove();
             }}
             className="absolute top-3 right-3 w-10 h-10 bg-black/20 backdrop-blur-lg rounded-full flex items-center justify-center hover:bg-black/30 transition-colors"
             aria-label="Remove"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-white">
-              <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+              <path
+                d="M18 6L6 18M6 6L18 18"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
         </div>
@@ -385,7 +393,8 @@ export const ImageUpload = ({
                 ))}
               </ul>
               <p className="text-xs text-yellow-600 mt-2">
-                💡 For more accurate analysis, consider improving these aspects. Your current photo can still be analyzed.
+                💡 For more accurate analysis, consider improving these aspects. Your current photo
+                can still be analyzed.
               </p>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageLayout } from '@/components/layout';
 import { ContentAPI } from '@/services/api';
@@ -15,10 +15,17 @@ const ContentDetailPage = (): JSX.Element => {
   const [relatedContents, setRelatedContents] = useState<Content[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Tracks slugs that have already triggered a view increment to defeat
+  // React Strict Mode double-mounts inside one browser session.
+  const viewedSlugsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (slug) {
       loadContent(slug);
+      if (!viewedSlugsRef.current.has(slug)) {
+        viewedSlugsRef.current.add(slug);
+        void ContentAPI.incrementContentView(slug);
+      }
     }
   }, [slug]);
 
@@ -26,11 +33,11 @@ const ContentDetailPage = (): JSX.Element => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Load content by slug
       const contentRes = await ContentAPI.getContentBySlug(contentSlug);
       setContent(contentRes.data);
-      
+
       // Load related contents if content ID is available
       if (contentRes.data.id) {
         try {
@@ -52,10 +59,10 @@ const ContentDetailPage = (): JSX.Element => {
   const formatDate = (dateString?: string | Date): string => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
     });
   };
 
@@ -70,7 +77,7 @@ const ContentDetailPage = (): JSX.Element => {
     const shareData = {
       title: content?.title,
       text: content?.excerpt || content?.subtitle,
-      url: window.location.href
+      url: window.location.href,
     };
 
     try {
@@ -105,9 +112,7 @@ const ContentDetailPage = (): JSX.Element => {
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <p className="text-red-600 mb-4">{error || 'We couldn’t find that article.'}</p>
-            <Button onClick={() => navigate('/')}>
-              Back to home
-            </Button>
+            <Button onClick={() => navigate('/')}>Back to home</Button>
           </div>
         </div>
       </PageLayout>
@@ -132,19 +137,16 @@ const ContentDetailPage = (): JSX.Element => {
           {/* Category */}
           <div className="mb-4">
             <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
-              {ContentAPI.getCategoryIcon(content.category)} {ContentAPI.getCategoryDisplayName(content.category)}
+              {ContentAPI.getCategoryIcon(content.category)}{' '}
+              {ContentAPI.getCategoryDisplayName(content.category)}
             </span>
           </div>
 
           {/* Title */}
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-            {content.title}
-          </h1>
-          
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">{content.title}</h1>
+
           {/* Subtitle */}
-          {content.subtitle && (
-            <p className="text-xl text-gray-600 mb-4">{content.subtitle}</p>
-          )}
+          {content.subtitle && <p className="text-xl text-gray-600 mb-4">{content.subtitle}</p>}
 
           {/* Meta info */}
           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
@@ -160,10 +162,7 @@ const ContentDetailPage = (): JSX.Element => {
               <Eye className="w-4 h-4" />
               {content.viewCount.toLocaleString()} views
             </span>
-            <button
-              onClick={handleShare}
-              className="flex items-center gap-1 hover:text-gray-700"
-            >
+            <button onClick={handleShare} className="flex items-center gap-1 hover:text-gray-700">
               <Share2 className="w-4 h-4" />
               Share
             </button>
@@ -182,7 +181,7 @@ const ContentDetailPage = (): JSX.Element => {
         )}
 
         {/* Content */}
-        <div 
+        <div
           className="prose prose-lg max-w-none mb-12"
           dangerouslySetInnerHTML={{ __html: sanitizedContent }}
         />
@@ -206,9 +205,7 @@ const ContentDetailPage = (): JSX.Element => {
         {/* Related Contents */}
         {relatedContents.length > 0 && (
           <section className="mt-16 pt-8 border-t">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              Related content
-            </h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Related content</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {relatedContents.map((related) => (
                 <article
@@ -231,9 +228,7 @@ const ContentDetailPage = (): JSX.Element => {
                         {related.title}
                       </h3>
                       {related.excerpt && (
-                        <p className="text-sm text-gray-600 line-clamp-2">
-                          {related.excerpt}
-                        </p>
+                        <p className="text-sm text-gray-600 line-clamp-2">{related.excerpt}</p>
                       )}
                     </div>
                   </div>

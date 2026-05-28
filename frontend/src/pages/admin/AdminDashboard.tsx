@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LogOut, Package, FileText, User, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { PageLayout } from '@/components/layout';
-import { ProductForm, ProductList, ContentForm, ContentList, UsersList } from '@/components/admin';
+import { ProductList, ContentList, UsersList } from '@/components/admin';
 import { useAdminStore } from '@/store/useAdminStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import type { Product, Content } from '@/types/admin';
@@ -18,8 +18,6 @@ const AdminDashboard: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabType>('products');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [editingContent, setEditingContent] = useState<Content | null>(null);
 
   const handleLogout = async () => {
     await logout();
@@ -41,14 +39,6 @@ const AdminDashboard: React.FC = () => {
 
   const handleEditContentClick = (content: Content) => {
     navigate(`/admin/contents/${content.id}/edit`);
-  };
-
-  const handleFormSuccess = () => {
-    // no-op: 폼은 별도 라우트에서 처리
-  };
-
-  const handleFormCancel = () => {
-    // no-op: 폼은 별도 라우트에서 처리
   };
 
   // URL 쿼리파라미터 ↔ 내부 상태 동기화
@@ -80,13 +70,9 @@ const AdminDashboard: React.FC = () => {
                   <p className="text-sm text-gray-500">상품 · 콘텐츠 관리</p>
                 </div>
               </div>
-              
-              <div className="flex items-center gap-4">                
-                <Button
-                  variant="ghost"
-                  onClick={handleLogout}
-                  className="flex items-center gap-2"
-                >
+
+              <div className="flex items-center gap-4">
+                <Button variant="ghost" onClick={handleLogout} className="flex items-center gap-2">
                   <LogOut className="w-4 h-4" />
                   로그아웃
                 </Button>
@@ -103,8 +89,6 @@ const AdminDashboard: React.FC = () => {
                 onClick={() => {
                   setActiveTab('products');
                   setViewMode('list');
-                  setEditingProduct(null);
-                  setEditingContent(null);
                   setSearchParams({ tab: 'products', view: 'list' }, { replace: false });
                 }}
                 className={`py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
@@ -116,13 +100,11 @@ const AdminDashboard: React.FC = () => {
                 <Package className="w-4 h-4" />
                 상품 관리
               </button>
-              
+
               <button
                 onClick={() => {
                   setActiveTab('contents');
                   setViewMode('list');
-                  setEditingProduct(null);
-                  setEditingContent(null);
                   setSearchParams({ tab: 'contents', view: 'list' }, { replace: false });
                 }}
                 className={`py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
@@ -139,8 +121,6 @@ const AdminDashboard: React.FC = () => {
                 onClick={() => {
                   setActiveTab('users');
                   setViewMode('list');
-                  setEditingProduct(null);
-                  setEditingContent(null);
                   setSearchParams({ tab: 'users', view: 'list' }, { replace: false });
                 }}
                 className={`py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
@@ -161,27 +141,19 @@ const AdminDashboard: React.FC = () => {
           {/* Product Management */}
           {activeTab === 'products' && (
             <>
-              <ProductList
-                onCreateClick={handleCreateClick}
-                onEditClick={handleEditProductClick}
-              />
+              <ProductList onCreateClick={handleCreateClick} onEditClick={handleEditProductClick} />
             </>
           )}
 
           {/* Content Management */}
           {activeTab === 'contents' && (
             <>
-              <ContentList
-                onCreateClick={handleCreateClick}
-                onEditClick={handleEditContentClick}
-              />
+              <ContentList onCreateClick={handleCreateClick} onEditClick={handleEditContentClick} />
             </>
           )}
 
           {/* Users Management */}
-          {activeTab === 'users' && (
-            <UsersList />
-          )}
+          {activeTab === 'users' && <UsersList />}
         </main>
       </div>
     </PageLayout>

@@ -8,6 +8,7 @@
 import * as faceLandmarksDetection from '@tensorflow-models/face-landmarks-detection';
 import { initializeTensorFlow, getTensorFlow } from '@/utils/tensorflowInit';
 import { getBrowserOptimizationSettings, isIOS, isSafari } from '@/utils/browserDetection';
+import { devLog } from '@/utils/devLog';
 
 class FaceMeshService {
   private static instance: FaceMeshService | null = null;
@@ -29,13 +30,13 @@ class FaceMeshService {
 
   async initialize(): Promise<boolean> {
     if (this.initialized && this.detector) {
-      console.log('✅ [FaceMesh Service] Already initialized, reusing existing instance');
+      devLog.log('✅ [FaceMesh Service] Already initialized, reusing existing instance');
       this.referenceCount++;
       return true;
     }
 
     if (this.initPromise) {
-      console.log('⏳ [FaceMesh Service] Initialization in progress, waiting...');
+      devLog.log('⏳ [FaceMesh Service] Initialization in progress, waiting...');
       try {
         await this.initPromise;
         this.referenceCount++;
@@ -46,7 +47,7 @@ class FaceMeshService {
     }
 
     this.initPromise = this.initializeInternal();
-    
+
     try {
       await this.initPromise;
       this.referenceCount++;
@@ -57,88 +58,89 @@ class FaceMeshService {
   }
 
   private async initializeInternal(): Promise<void> {
-    console.log('🔧 [FaceMesh Service] Starting FaceMesh initialization...');
+    devLog.log('🔧 [FaceMesh Service] Starting FaceMesh initialization...');
     const startTime = performance.now();
 
     try {
       // Get browser-specific optimization settings
       const browserSettings = getBrowserOptimizationSettings();
-      console.log('🌐 [FaceMesh Service] Browser optimization settings:', {
+      devLog.log('🌐 [FaceMesh Service] Browser optimization settings:', {
         isSafari: isSafari(),
         isIOS: isIOS(),
-        settings: browserSettings
+        settings: browserSettings,
       });
 
       // Ensure TensorFlow is initialized first
-      console.log('🔧 [FaceMesh Service] Ensuring TensorFlow is ready...');
+      devLog.log('🔧 [FaceMesh Service] Ensuring TensorFlow is ready...');
       await initializeTensorFlow();
-      
+
       const tf = await getTensorFlow();
-      console.log('✅ [FaceMesh Service] TensorFlow ready, backend:', tf.getBackend());
+      devLog.log('✅ [FaceMesh Service] TensorFlow ready, backend:', tf.getBackend());
 
       // Safari/iOS memory optimization
       if (browserSettings.enableMemoryOptimization) {
-        console.log('🧹 [FaceMesh Service] Applying Safari/iOS memory optimizations...');
-        
+        devLog.log('🧹 [FaceMesh Service] Applying Safari/iOS memory optimizations...');
+
         // Force garbage collection before loading model
         if (typeof (globalThis as any).gc === 'function') {
           (globalThis as any).gc();
         }
-        
+
         // Clear any existing tensors
         const memBefore = tf.memory();
         if (memBefore.numTensors > 0) {
-          console.log(`🧹 [FaceMesh Service] Cleaning ${memBefore.numTensors} tensors before model load`);
+          devLog.log(
+            `🧹 [FaceMesh Service] Cleaning ${memBefore.numTensors} tensors before model load`,
+          );
           tf.disposeVariables();
         }
       }
 
       // Create MediaPipe FaceMesh detector with browser-specific config
-      console.log('🔧 [FaceMesh Service] Loading MediaPipe FaceMesh model...');
+      devLog.log('🔧 [FaceMesh Service] Loading MediaPipe FaceMesh model...');
       const modelStart = performance.now();
-      
+
       const model = faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh;
-      
+
       // Adjust config based on browser capabilities
       const detectorConfig: any = {
         runtime: 'tfjs' as const,
         refineLandmarks: browserSettings.refineLandmarks,
         maxFaces: browserSettings.maxFaces,
       };
-      
+
       // Safari-specific adjustments
       if (isSafari() || isIOS()) {
-        console.log('📱 [FaceMesh Service] Applying Safari/iOS specific configurations');
-        
+        devLog.log('📱 [FaceMesh Service] Applying Safari/iOS specific configurations');
+
         // For iOS, use lower resolution for better performance
         if (isIOS()) {
           detectorConfig.solutionPath = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh';
-          console.log('📱 [FaceMesh Service] Using CDN path for iOS');
+          devLog.log('📱 [FaceMesh Service] Using CDN path for iOS');
         }
       }
-      
+
       this.detector = await faceLandmarksDetection.createDetector(model, detectorConfig);
-      
+
       const modelTime = performance.now() - modelStart;
       const totalTime = performance.now() - startTime;
-      
+
       this.initialized = true;
-      
+
       // Log memory usage with Safari warning
       const memInfo = tf.memory();
-      console.log(`✅ [FaceMesh Service] Model loaded in ${Math.round(modelTime)}ms`);
-      console.log(`🎯 [FaceMesh Service] Total initialization in ${Math.round(totalTime)}ms`);
-      console.log(`📊 [FaceMesh Service] Memory usage:`, {
+      devLog.log(`✅ [FaceMesh Service] Model loaded in ${Math.round(modelTime)}ms`);
+      devLog.log(`🎯 [FaceMesh Service] Total initialization in ${Math.round(totalTime)}ms`);
+      devLog.log(`📊 [FaceMesh Service] Memory usage:`, {
         tensors: memInfo.numTensors,
         memory: `${(memInfo.numBytes / 1024 / 1024).toFixed(2)} MB`,
-        ...(isSafari() && { warning: 'Safari has strict memory limits (~200-300MB)' })
+        ...(isSafari() && { warning: 'Safari has strict memory limits (~200-300MB)' }),
       });
-      
+
       // Setup memory monitoring for Safari
       if (isSafari() || isIOS()) {
         this.setupMemoryMonitoring();
       }
-      
     } catch (error) {
       console.error('❌ [FaceMesh Service] Failed to initialize:', error);
       this.initialized = false;
@@ -150,19 +152,21 @@ class FaceMeshService {
    * Monitor memory usage on Safari/iOS and dispose if needed
    */
   private setupMemoryMonitoring(): void {
-    console.log('📊 [FaceMesh Service] Setting up memory monitoring for Safari/iOS');
-    
+    devLog.log('📊 [FaceMesh Service] Setting up memory monitoring for Safari/iOS');
+
     // Check memory every 30 seconds
     setInterval(async () => {
       if (this.detector && this.referenceCount === 0) {
         const tf = await getTensorFlow();
         const memInfo = tf.memory();
         const memoryMB = memInfo.numBytes / 1024 / 1024;
-        
+
         // If memory usage is high and no components are using the service
         if (memoryMB > 150) {
-          console.warn(`⚠️ [FaceMesh Service] High memory usage (${memoryMB.toFixed(2)}MB) with no active references`);
-          console.log('🧹 [FaceMesh Service] Auto-disposing to free memory');
+          console.warn(
+            `⚠️ [FaceMesh Service] High memory usage (${memoryMB.toFixed(2)}MB) with no active references`,
+          );
+          devLog.log('🧹 [FaceMesh Service] Auto-disposing to free memory');
           this.dispose();
         }
       }
@@ -197,13 +201,13 @@ class FaceMeshService {
    */
   release(): void {
     this.referenceCount = Math.max(0, this.referenceCount - 1);
-    console.log(`📊 [FaceMesh Service] Released, reference count: ${this.referenceCount}`);
-    
+    devLog.log(`📊 [FaceMesh Service] Released, reference count: ${this.referenceCount}`);
+
     // Optional: Auto-dispose when no components are using it
     // For now, we keep it loaded for better performance
     /*
     if (this.referenceCount === 0) {
-      console.log('🧹 [FaceMesh Service] No references, scheduling disposal...');
+      devLog.log('🧹 [FaceMesh Service] No references, scheduling disposal...');
       setTimeout(() => {
         if (this.referenceCount === 0) {
           this.dispose();
@@ -221,7 +225,7 @@ class FaceMeshService {
     if (this.detector) {
       try {
         this.detector.dispose();
-        console.log('✅ [FaceMesh Service] Detector disposed');
+        devLog.log('✅ [FaceMesh Service] Detector disposed');
       } catch (error) {
         console.warn('⚠️ [FaceMesh Service] Failed to dispose detector:', error);
       }
@@ -239,7 +243,7 @@ class FaceMeshService {
       initialized: this.initialized,
       hasDetector: !!this.detector,
       referenceCount: this.referenceCount,
-      isInitializing: !!this.initPromise
+      isInitializing: !!this.initPromise,
     };
   }
 }

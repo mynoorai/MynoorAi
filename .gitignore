@@ -16,3 +16,7 @@ ShowMeTheColor/src/api.log
 ShowMeTheColor/src/personal_color_analysis/__pycache__/
 ShowMeTheColor/venv/
 node_modules
+.env.docker
+ShowMeTheColor/src/__pycache__/
+
+backend/uploads/

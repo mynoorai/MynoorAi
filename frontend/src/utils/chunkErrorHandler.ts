@@ -58,7 +58,7 @@ export const retryChunkLoad = async <T>(
             // Try to clear the specific module from cache
             try {
               delete window.__vite_preload_cache?.[moduleUrl];
-            } catch {}
+            } catch { /* noop */ }
           }
         }
         

@@ -1,12 +1,9 @@
 import { forwardRef, memo } from 'react';
-import { 
-  cx, 
-  generateStyles,
-  type TextBaseProps,
-} from '@/design-system';
+import { cx, generateStyles, type TextBaseProps } from '@/design-system';
 import { cn } from '@/utils/cn';
 
-export interface TextProps extends TextBaseProps, Omit<React.HTMLAttributes<HTMLElement>, keyof TextBaseProps> {
+export interface TextProps
+  extends TextBaseProps, Omit<React.HTMLAttributes<HTMLElement>, keyof TextBaseProps> {
   as?: keyof JSX.IntrinsicElements;
 }
 
@@ -22,19 +19,30 @@ const TextComponent = forwardRef<HTMLElement, TextProps>(
       truncate = false,
       clamp,
       children,
-      
+
       // Style props
-      p, px, py, pt, pr, pb, pl,
-      m, mx, my, mt, mr, mb, ml,
+      p,
+      px,
+      py,
+      pt,
+      pr,
+      pb,
+      pl,
+      m,
+      mx,
+      my,
+      mt,
+      mr,
+      mb,
+      ml,
       gap,
       fontSize,
       fontWeight,
-      lineHeight,
       textAlign,
       textColor,
       display,
       opacity,
-      
+
       // HTML props
       className,
       style,
@@ -43,12 +51,25 @@ const TextComponent = forwardRef<HTMLElement, TextProps>(
     ref,
   ) => {
     // Determine the element to render
-    const Element = as || (variant.startsWith('h') ? variant as keyof JSX.IntrinsicElements : 'p');
-    
+    const Element =
+      as || (variant.startsWith('h') ? (variant as keyof JSX.IntrinsicElements) : 'p');
+
     // Generate base styles from design system props
     const designSystemStyles = generateStyles({
-      p, px, py, pt, pr, pb, pl,
-      m, mx, my, mt, mr, mb, ml,
+      p,
+      px,
+      py,
+      pt,
+      pr,
+      pb,
+      pl,
+      m,
+      mx,
+      my,
+      mt,
+      mr,
+      mb,
+      ml,
       gap,
       fontSize,
       fontWeight: fontWeight || weight,
@@ -57,12 +78,12 @@ const TextComponent = forwardRef<HTMLElement, TextProps>(
       display,
       opacity,
     });
-    
+
     // Base text classes
     const baseClasses = cx(
       // Reset
       'm-0',
-      
+
       // Variant classes
       variant === 'h1' && 'text-h1',
       variant === 'h2' && 'text-h2',
@@ -74,7 +95,7 @@ const TextComponent = forwardRef<HTMLElement, TextProps>(
       variant === 'body-lg' && 'text-body-lg',
       variant === 'body-sm' && 'text-body-sm',
       variant === 'caption' && 'text-xs',
-      
+
       // Color classes
       color === 'primary' && 'text-primary-400',
       color === 'secondary' && 'text-secondary-400',
@@ -85,7 +106,7 @@ const TextComponent = forwardRef<HTMLElement, TextProps>(
       color === 'gray' && 'text-gray-600',
       color === 'inherit' && 'text-inherit',
       color === 'current' && 'text-current',
-      
+
       // Weight classes (if not set by variant)
       weight === 'thin' && 'font-thin',
       weight === 'extralight' && 'font-extralight',
@@ -96,16 +117,16 @@ const TextComponent = forwardRef<HTMLElement, TextProps>(
       weight === 'bold' && 'font-bold',
       weight === 'extrabold' && 'font-extrabold',
       weight === 'black' && 'font-black',
-      
+
       // Alignment classes
       align === 'left' && 'text-left',
       align === 'center' && 'text-center',
       align === 'right' && 'text-right',
       align === 'justify' && 'text-justify',
-      
+
       // Truncate classes
       truncate && 'truncate',
-      
+
       // Line clamp classes
       clamp === 1 && 'line-clamp-1',
       clamp === 2 && 'line-clamp-2',
@@ -114,7 +135,7 @@ const TextComponent = forwardRef<HTMLElement, TextProps>(
       clamp === 5 && 'line-clamp-5',
       clamp === 6 && 'line-clamp-6',
     );
-    
+
     return (
       <Element
         ref={ref as any}
