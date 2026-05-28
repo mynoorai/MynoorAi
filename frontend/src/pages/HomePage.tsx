@@ -1,19 +1,64 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { PageLayout } from '@/components/layout';
+/**
+ * HomePage — Apple-inspired "Today" surface.
+ *
+ * Layout cues:
+ *  - Status-bar-aware iOS background (#F2F2F7)
+ *  - Large title with greeting + avatar pill on right
+ *  - Hero "Personal Color" card (gradient if diagnosed, CTA if not)
+ *  - Featured stories carousel (App Store style cards)
+ *  - "For You" recommended products (horizontal scroll)
+ *  - "All Picks" 2-column grid preview
+ *  - Bottom tab bar (Home / Shop / Analyze / MyPage)
+ *
+ * Only depends on existing APIs:
+ *   GET /api/contents/popular
+ *   GET /api/products
+ * Falls back gracefully when either is empty / loading.
+ */
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Sparkles, ShoppingBag, Heart, Home, User2, Camera, Star } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+
 import { ContentAPI } from '@/services/api';
 import { ProductAPI } from '@/services/api/products';
-import { ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useAppStore } from '@/store';
+import { getImageUrl } from '@/utils/imageUrl';
 import { AuthRequired, PersonalColorRequired } from '@/components/auth';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
-import { Text } from '@/components/ui';
-import { getImageUrl } from '@/utils/imageUrl';
+import {
+  iosPage,
+  IOSLargeTitle,
+  IOSSectionHeader,
+  IOSTabBar,
+  IOSPill,
+  IOSGetButton,
+  iosCard,
+} from '@/components/ios';
 import type { Content, Product } from '@/types';
 
-const IMAGE_FALLBACK = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
+const SEASON_GRADIENT: Record<string, string> = {
+  spring: 'from-[#FFD8A8] via-[#FFB199] to-[#FF8C9C]',
+  summer: 'from-[#C6E5FF] via-[#9DD4FF] to-[#88C0FF]',
+  autumn: 'from-[#E0B97A] via-[#C8884E] to-[#8E5A3B]',
+  winter: 'from-[#7FAFFF] via-[#5C7CFA] to-[#3A4DB8]',
+  default: 'from-[#A0A0A8] via-[#797980] to-[#4A4A52]',
+};
+
+const FALLBACK_IMG = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
+
+const greeting = (name?: string | null): string => {
+  const hr = new Date().getHours();
+  const base = hr < 5 ? 'Good Night' : hr < 12 ? 'Good Morning' : hr < 18 ? 'Good Afternoon' : 'Good Evening';
+  return name ? `${base},` : base;
+};
 
 const HomePage = (): JSX.Element => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, isAuthenticated } = useAuthStore();
+  const { analysisResult } = useAppStore();
   const {
     checkAuth,
     showAuthModal,
@@ -24,306 +69,241 @@ const HomePage = (): JSX.Element => {
     closePersonalColorModal,
   } = useRequireAuth();
 
-  const [featuredContents, setFeaturedContents] = useState<Content[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const contentsQ = useQuery({
+    queryKey: ['home', 'contents'],
+    queryFn: () => ContentAPI.getPopularContents(8),
+    staleTime: 60_000,
+  });
+  const productsQ = useQuery({
+    queryKey: ['home', 'products'],
+    queryFn: () => ProductAPI.getProducts(),
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const contents: Content[] = contentsQ.data?.data ?? [];
+  const products: Product[] = productsQ.data?.data ?? [];
 
-  const loadData = async (): Promise<void> => {
-    try {
-      setLoading(true);
+  const season = (analysisResult?.personal_color_en || '').toLowerCase();
+  const seasonGradient = SEASON_GRADIENT[season] || SEASON_GRADIENT.default;
 
-      // Load featured contents and products
-      const [contentsRes, productsRes] = await Promise.all([
-        ContentAPI.getPopularContents(5),
-        ProductAPI.getProducts(),
-      ]);
+  const recommendedProducts = useMemo(() => {
+    if (!analysisResult) return products.slice(0, 6);
+    const colorMap: Record<string, string> = {
+      spring: 'spring_warm',
+      summer: 'summer_cool',
+      autumn: 'autumn_warm',
+      winter: 'winter_cool',
+    };
+    const wanted = colorMap[season];
+    const matched = wanted ? products.filter((p) => p.personalColors.includes(wanted as any)) : [];
+    const list = matched.length > 0 ? matched : products;
+    return list.slice(0, 6);
+  }, [products, analysisResult, season]);
 
-      setFeaturedContents(contentsRes.data);
-      // Take first 6 products (public API already filters active products)
-      setProducts(productsRes.data.slice(0, 6));
-    } catch (err) {
-      console.error('Failed to load data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const allPicks = useMemo(() => products.slice(0, 6), [products]);
 
-  const nextSlide = (): void => {
-    setCurrentSlide((prev) => (prev + 1) % featuredContents.length);
-  };
-
-  const prevSlide = (): void => {
-    setCurrentSlide((prev) => (prev - 1 + featuredContents.length) % featuredContents.length);
-  };
-
-  const goToSlide = (index: number): void => {
-    setCurrentSlide(index);
-  };
-
-  const handleContentClick = (content: Content): void => {
-    navigate(`/content/${content.slug}`);
-  };
-
-  const formatPrice = (price: number): string => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(price);
-  };
-
-  if (loading) {
-    return (
-      <PageLayout showDefaultHeader>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-primary-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <Text color="gray">Loading...</Text>
-          </div>
-        </div>
-      </PageLayout>
-    );
-  }
+  const tabItems = [
+    { to: '/', label: 'Home', icon: <Home className="w-6 h-6" />, match: (p: string) => p === '/' || p.startsWith('/home') },
+    { to: '/products', label: 'Shop', icon: <ShoppingBag className="w-6 h-6" />, match: (p: string) => p.startsWith('/products') },
+    { to: '/photoguide', label: 'Analyze', icon: <Camera className="w-6 h-6" />, match: (p: string) => p.startsWith('/photoguide') || p.startsWith('/upload') || p.startsWith('/analyzing') },
+    { to: '/mypage', label: 'MyPage', icon: <User2 className="w-6 h-6" />, match: (p: string) => p.startsWith('/mypage') },
+  ];
 
   return (
-    <PageLayout showDefaultHeader>
-      <div className="max-w-7xl mx-auto">
-        {/* Content Carousel - Optional */}
-        {featuredContents.length > 0 ? (
-          <div className="relative mb-8 -mx-4 md:mx-0">
-            <div className="relative h-[400px] md:h-[500px] overflow-hidden rounded-none md:rounded-2xl">
-              <div
-                className="flex transition-transform duration-500 ease-in-out h-full"
-                style={{ transform: `translateX(-${currentSlide * 100}%)` }}
-              >
-                {featuredContents.map((content) => (
-                  <div
-                    key={content.id}
-                    className="w-full flex-shrink-0 relative cursor-pointer"
-                    onClick={() => handleContentClick(content)}
-                  >
-                    <img
-                      src={getImageUrl(content.thumbnailUrl)}
-                      alt={content.title}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                      onError={(e) => {
-                        e.currentTarget.src = IMAGE_FALLBACK;
-                        e.currentTarget.onerror = null;
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+    <div className={iosPage}>
+      <IOSLargeTitle
+        title={greeting(user?.fullName)}
+        subtitle={user?.fullName || 'Find your perfect color'}
+        right={
+          <button
+            onClick={() => navigate(isAuthenticated ? '/mypage' : '/login')}
+            className="w-9 h-9 rounded-full bg-[#E5E5EA] flex items-center justify-center text-[#1C1C1E] font-semibold min-h-0"
+            style={{ minHeight: 36 }}
+            aria-label="Account"
+          >
+            {(user?.fullName?.[0] || user?.email?.[0] || 'G').toUpperCase()}
+          </button>
+        }
+      />
 
-                    <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 text-white">
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-sm">
-                          {ContentAPI.getCategoryIcon(content.category)}{' '}
-                          {ContentAPI.getCategoryDisplayName(content.category)}
-                        </span>
-                        {content.viewCount > 100 && (
-                          <span className="px-3 py-1 bg-primary-400/80 backdrop-blur-sm rounded-full text-sm">
-                            🔥 Popular
-                          </span>
-                        )}
-                      </div>
-                      <Text as="h2" variant="h1" mb="2" className="text-3xl md:text-4xl">
-                        {content.title}
-                      </Text>
-                      {content.subtitle && (
-                        <Text variant="body-lg" mb="3" className="opacity-90 text-lg md:text-xl">
-                          {content.subtitle}
-                        </Text>
-                      )}
-                      {content.excerpt && (
-                        <Text variant="body-sm" className="opacity-80 line-clamp-2">
-                          {content.excerpt}
-                        </Text>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Navigation arrows */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  prevSlide();
-                }}
-                className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-black/30 backdrop-blur-sm text-white rounded-full hover:bg-black/50 transition-colors"
-              >
-                <ChevronLeft className="w-6 h-6" />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  nextSlide();
-                }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black/30 backdrop-blur-sm text-white rounded-full hover:bg-black/50 transition-colors"
-              >
-                <ChevronRight className="w-6 h-6" />
-              </button>
-
-              {/* Dots indicator */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1">
-                {featuredContents.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      goToSlide(index);
-                    }}
-                    className={`w-1 h-1 rounded-full transition-all ${
-                      index === currentSlide ? 'bg-white w-2' : 'bg-white/60 hover:bg-white/80'
-                    }`}
-                  />
-                ))}
-              </div>
+      {/* Hero personal color card */}
+      <div className="px-4 mt-1">
+        <button
+          onClick={() => {
+            if (analysisResult) navigate('/result');
+            else navigate('/photoguide');
+          }}
+          className={`${iosCard} w-full text-left overflow-hidden p-0 relative active:scale-[0.99] transition-transform`}
+          style={{ minHeight: 0 }}
+        >
+          <div className={`bg-gradient-to-br ${seasonGradient} p-5`}>
+            <div className="flex items-center justify-between text-white/90 text-[11px] font-semibold uppercase tracking-[0.6px]">
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                {analysisResult ? 'Your personal color' : 'Personal color analysis'}
+              </span>
+              <span className="opacity-90">{analysisResult ? `${analysisResult.confidence ?? 0}%` : 'Free · 30s'}</span>
             </div>
-          </div>
-        ) : (
-          /* Empty state for contents */
-          <div className="relative mb-8 -mx-4 md:mx-0">
-            <div className="bg-gray-100 rounded-none md:rounded-2xl h-[400px] md:h-[500px] flex items-center justify-center">
-              <div className="text-center px-4">
-                <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Eye className="w-10 h-10 text-gray-400" />
-                </div>
-                <Text variant="h3" color="gray" mb="2">
-                  Content coming soon!
-                </Text>
-                <Text variant="body" color="gray" className="opacity-70">
-                  Amazing beauty tips and color guides are on the way!
-                </Text>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Products Section */}
-        {products.length > 0 ? (
-          <div className="mb-12">
-            <div className="flex items-center justify-between mb-6">
-              <Text variant="h2" color="gray">
-                Recommended for You
-              </Text>
-              <button
-                onClick={() => {
-                  if (checkAuth('product catalog')) {
-                    navigate('/products');
-                  }
-                }}
-                className="px-4 py-2 text-primary-400 hover:text-primary-600 font-medium flex items-center gap-2 group transition-colors"
-              >
-                See More
-                <svg
-                  className="w-4 h-4 group-hover:translate-x-1 transition-transform"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {products.map((product) => (
-                <div
-                  key={product.id}
-                  className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
-                  onClick={() => {
-                    if (checkAuth('product details')) {
-                      navigate(`/products/${product.id}`);
-                    }
-                  }}
-                >
-                  <div className="aspect-square relative overflow-hidden bg-gray-100">
-                    <img
-                      src={getImageUrl(product.thumbnailUrl)}
-                      alt={product.name}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <div className="p-4">
-                    <Text
-                      variant="body"
-                      weight="medium"
-                      color="gray"
-                      mb="1"
-                      className="line-clamp-1"
-                    >
-                      {product.name}
-                    </Text>
-                    <Text variant="body-lg" weight="semibold" color="primary">
-                      {formatPrice(product.price)}
-                    </Text>
-                  </div>
-                </div>
+            <h3 className="text-white text-[28px] leading-[33px] font-bold tracking-tight mt-3">
+              {analysisResult
+                ? (analysisResult.personal_color || analysisResult.personal_color_en || 'Your tone')
+                : 'Discover your tone'}
+            </h3>
+            <p className="text-white/85 text-[14px] mt-2 max-w-[280px]">
+              {analysisResult
+                ? 'Tap to see your palette, do/don\u2019t colors, and curated hijab picks.'
+                : 'Take a photo and our AI will find the colors that suit you best.'}
+            </p>
+            <div className="flex gap-2 mt-4">
+              {(analysisResult?.best_colors || ['#FFB3BA', '#FFCC99', '#FFFFCC', '#CCFFCC']).slice(0, 5).map((c, i) => (
+                <div key={i} className="w-7 h-7 rounded-full ring-2 ring-white/60 shadow" style={{ background: c }} />
               ))}
             </div>
           </div>
-        ) : (
-          /* Empty state for products */
-          <div className="mb-12">
-            <div className="flex items-center justify-between mb-6">
-              <Text variant="h2" color="gray">
-                Recommended for You
-              </Text>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-12 text-center">
-              <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg
-                  className="w-10 h-10 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                  />
-                </svg>
-              </div>
-              <Text variant="h3" color="gray" mb="2">
-                Products coming soon!
-              </Text>
-              <Text variant="body" color="gray" className="opacity-70">
-                Hijabs and beauty products are on the way!
-              </Text>
-              <button
-                onClick={() => navigate('/diagnosis')}
-                className="mt-6 px-8 py-4 bg-gradient-to-r from-primary-600 to-primary-700 text-white font-bold rounded-full hover:from-primary-700 hover:to-primary-800 transform hover:-translate-y-0.5 hover:scale-105 active:scale-95 transition-all duration-300 shadow-lg hover:shadow-xl border-2 border-primary-500"
-              >
-                🎨 Find My Colors
-              </button>
-            </div>
-          </div>
-        )}
+        </button>
       </div>
 
-      {/* Auth Required Modal */}
-      <AuthRequired isOpen={showAuthModal} onClose={closeAuthModal} feature={authModalFeature} />
+      {/* Featured stories */}
+      {contents.length > 0 && (
+        <>
+          <IOSSectionHeader title="Featured" action={<button onClick={() => navigate('/products')} className="text-[#007AFF] text-[15px] font-medium min-h-0">See All</button>} />
+          <div className="px-4 overflow-x-auto no-scrollbar -mx-1">
+            <div className="flex gap-3 px-1 pb-1">
+              {contents.slice(0, 8).map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => navigate(`/content/${c.slug}`)}
+                  className={`${iosCard} relative overflow-hidden shrink-0 w-[260px] h-[340px] text-left active:scale-[0.99] transition-transform`}
+                  style={{ minHeight: 0 }}
+                >
+                  <img
+                    src={getImageUrl(c.thumbnailUrl) || FALLBACK_IMG}
+                    alt={c.title}
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG; }}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+                  <div className="absolute top-3 left-3 right-3 flex justify-between">
+                    <IOSPill bg="rgba(255,255,255,0.85)" color="#1C1C1E">
+                      {ContentAPI.getCategoryDisplayName(c.category)}
+                    </IOSPill>
+                    {c.viewCount > 100 && (
+                      <IOSPill bg="rgba(255,59,48,0.9)" color="white">
+                        <Star className="w-3 h-3" /> Popular
+                      </IOSPill>
+                    )}
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.6px] opacity-90">
+                      Story
+                    </div>
+                    <div className="text-[22px] leading-[26px] font-bold mt-1">{c.title}</div>
+                    {c.subtitle && (
+                      <div className="text-[13px] opacity-85 mt-1 line-clamp-2">{c.subtitle}</div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
-      {/* Personal Color Required Modal */}
-      <PersonalColorRequired
-        isOpen={showPersonalColorModal}
-        onClose={closePersonalColorModal}
-        feature={personalColorModalFeature}
+      {/* For You — recommended products */}
+      <IOSSectionHeader
+        title={analysisResult ? 'For You' : 'New Arrivals'}
+        action={
+          <button onClick={() => navigate('/products')} className="text-[#007AFF] text-[15px] font-medium min-h-0">
+            See All
+          </button>
+        }
       />
-    </PageLayout>
+      {productsQ.isLoading ? (
+        <div className="px-4 flex gap-3 overflow-x-auto no-scrollbar">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className={`${iosCard} shrink-0 w-[230px] h-[300px] animate-pulse bg-[#E5E5EA]`} />
+          ))}
+        </div>
+      ) : recommendedProducts.length === 0 ? (
+        <div className="px-4">
+          <div className={`${iosCard} p-6 text-center text-[#8E8E93] text-[15px]`}>
+            No products yet. Admin will publish soon.
+          </div>
+        </div>
+      ) : (
+        <div className="px-4 overflow-x-auto no-scrollbar -mx-1">
+          <div className="flex gap-3 px-1 pb-1">
+            {recommendedProducts.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => {
+                  if (checkAuth('product details')) navigate(`/products/${p.id}`);
+                }}
+                className={`${iosCard} shrink-0 w-[160px] text-left overflow-hidden active:scale-[0.99] transition-transform`}
+                style={{ minHeight: 0 }}
+              >
+                <div className="aspect-square bg-[#F2F2F7] overflow-hidden">
+                  <img
+                    src={getImageUrl(p.thumbnailUrl) || FALLBACK_IMG}
+                    alt={p.name}
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG; }}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="p-3">
+                  <div className="text-[11px] uppercase tracking-[0.5px] font-semibold text-[#8E8E93]">
+                    {p.category}
+                  </div>
+                  <div className="text-[15px] font-semibold text-[#1C1C1E] line-clamp-1 mt-0.5">{p.name}</div>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-[13px] text-[#8E8E93]">
+                      {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(p.price)}
+                    </span>
+                    <IOSGetButton>Get</IOSGetButton>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* All Picks grid */}
+      {allPicks.length > 0 && (
+        <>
+          <IOSSectionHeader title="Editor's Picks" />
+          <div className="px-4 grid grid-cols-2 gap-3">
+            {allPicks.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => { if (checkAuth('product details')) navigate(`/products/${p.id}`); }}
+                className={`${iosCard} text-left overflow-hidden active:scale-[0.99] transition-transform`}
+                style={{ minHeight: 0 }}
+              >
+                <div className="aspect-square bg-[#F2F2F7]">
+                  <img
+                    src={getImageUrl(p.thumbnailUrl) || FALLBACK_IMG}
+                    alt={p.name}
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG; }}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="p-3">
+                  <div className="text-[15px] font-semibold line-clamp-1">{p.name}</div>
+                  <div className="text-[13px] text-[#8E8E93] mt-1">
+                    {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(p.price)}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      <IOSTabBar items={tabItems} pathname={location.pathname} />
+      <AuthRequired isOpen={showAuthModal} onClose={closeAuthModal} feature={authModalFeature} />
+      <PersonalColorRequired isOpen={showPersonalColorModal} onClose={closePersonalColorModal} feature={personalColorModalFeature} />
+    </div>
   );
 };
 
