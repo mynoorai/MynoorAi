@@ -55,9 +55,12 @@ env.logConfiguration();
 app.set("trust proxy", env.isProduction() ? 1 : false);
 
 // HTTPS enforcement middleware - MUST be before other middleware
+// Disable when terminating TLS in front of the app (e.g. Cloudflare Tunnel,
+// nginx reverse proxy, ngrok). Set DISABLE_HTTPS_REDIRECT=true in that case.
+const httpsRedirectDisabled = process.env.DISABLE_HTTPS_REDIRECT === "true";
 app.use((req: Request, res: Response, next) => {
   // Only enforce HTTPS in production
-  if (env.isProduction()) {
+  if (env.isProduction() && !httpsRedirectDisabled) {
     // Check if request is not HTTPS
     if (!req.secure && req.get("X-Forwarded-Proto") !== "https") {
       console.warn(
